@@ -1,7 +1,7 @@
 <!doctype html><html lang="ko"><head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>ESP32 센서 대시보드</title>
+<title>ESP32 센서 대시보드_MQTT</title>
 <style>
 :root{
   --bg:#0b1020;--card:#131a2b;--txt:#e8eefc;--mut:#9fb2d7;--line:#22314f;
@@ -20,30 +20,24 @@ h1{margin:0 0 8px;font-size:26px;font-weight:800;display:flex;justify-content:sp
 .status{margin-top:8px;color:var(--mut);font-size:14px}
 hr{border:0;border-top:1px solid var(--line);margin:14px 0;transition:border-color .3s}
 
-/* Theme toggle */
 .theme-toggle{cursor:pointer;font-size:22px;user-select:none;transition:transform .2s}
 .theme-toggle:hover{transform:scale(1.15)}
 
-/* KPI Tiles */
 .grid{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:12px;margin-top:6px}
 .tile{background:#0f1526;border-radius:12px;padding:12px;text-align:center;min-height:76px;transition:background .3s}
 :root.light .tile{background:#eef1f7}
 .v{font-size:22px;font-weight:800;margin-top:4px}
 
-/* LED 버튼 */
 .led{display:flex;align-items:center;gap:12px;margin-top:12px;flex-wrap:wrap}
 .btn{border:0;color:#fff;padding:12px 14px;border-radius:12px;cursor:pointer;font-weight:800;min-width:98px;font-size:15px;transition:all .2s}
 .btn.on{background:#2d6bff;} .btn.off{background:#32405e;} .btn.active{background:#00cc66;} .btn.dim{background:#1b2236;}
 .btn.toggle{background:var(--btn-bg);border:1px solid var(--btn-border);color:var(--txt);min-width:120px}
 
-/* 토글 버튼 한 줄 */
 .toggle-row{display:flex;gap:8px;flex-wrap:wrap;margin:8px 0 12px}
 
-/* 숨김/펼침 애니메이션 */
 .collapsible{max-height:0;overflow:hidden;transition:max-height .5s ease,padding .3s ease,opacity .3s ease;opacity:0}
 .collapsible.open{max-height:2000px;padding-top:6px;opacity:1}
 
-/* ===== 테이블 ===== */
 .tablewrap{overflow:auto;background:#0f1526;border-radius:14px;padding:0 6px 6px 0;max-height:50vh;transition:background .3s}
 :root.light .tablewrap{background:#eef1f7}
 table{border-collapse:collapse;width:auto;min-width:100%;table-layout:auto}
@@ -56,7 +50,6 @@ th:nth-child(2),th:nth-child(3),th:nth-child(4),th:nth-child(5){width:63px}
 th:nth-child(6){width:72px}
 th:nth-child(7){width:52px}
 
-/* ===== Charts ===== */
 .charts{margin-top:14px;display:grid;grid-template-columns:1fr;gap:12px}
 .chart{background:#0f1526;border-radius:12px;padding:10px;transition:background .3s}
 :root.light .chart{background:#eef1f7}
@@ -76,7 +69,7 @@ th:nth-child(7){width:52px}
 }
 </style></head><body>
 <div class="wrap"><div class="card">
-  <h1>ESP32 센서 대시보드
+  <h1>ESP32 센서 대시보드_MQTT
     <span class="theme-toggle" id="themeToggle">🌙</span>
   </h1>
   <p class="mut">AHT25(온/습) + SCD42(온/습/CO₂) · LED제어</p>
@@ -102,7 +95,6 @@ th:nth-child(7){width:52px}
     <button class="btn toggle" id="toggleGraph">📊 그래프 보기</button>
   </div>
 
-  <!-- 기본 접힘 -->
   <div id="tableSection" class="collapsible">
     <div class="tablewrap">
       <table>
@@ -138,7 +130,7 @@ th:nth-child(7){width:52px}
 const $=s=>document.querySelector(s);
 const fastMs=3000, maxRows=60;
 
-/* ===== Theme toggle (instant chart redraw) ===== */
+// ===== Theme =====
 const themeToggle=$('#themeToggle');
 function applyTheme(t){
   document.documentElement.classList.toggle('light', t==='light');
@@ -148,7 +140,7 @@ function applyTheme(t){
 applyTheme(localStorage.getItem('theme')||'dark');
 themeToggle.onclick=()=>{const t=document.documentElement.classList.contains('light')?'dark':'light';applyTheme(t);localStorage.setItem('theme',t);};
 
-/* ===== Toggle buttons ===== */
+// ===== Toggle buttons =====
 function setToggle(btn,sec,labelShow,labelHide){
   const sync=()=>btn.textContent=sec.classList.contains('open')?labelHide:labelShow;
   btn.addEventListener('click',()=>{sec.classList.toggle('open');sync();if(sec.id==='graphSection'&&sec.classList.contains('open'))renderAllCharts();});
@@ -157,66 +149,52 @@ function setToggle(btn,sec,labelShow,labelHide){
 setToggle($('#toggleTable'),$('#tableSection'),'📋 테이블 보기','📋 테이블 숨기기');
 setToggle($('#toggleGraph'),$('#graphSection'),'📊 그래프 보기','📊 그래프 숨기기');
 
-/* ===== Resilient endpoints ===== */
-const EP = {
-  status : ['/api/status','/status','/readings','/get','/api/readings'],
-  history60: ['/api/history?limit=60','/history?limit=60','/api/history','/history','/logs'],
-  history1 : ['/api/history?limit=1','/history?limit=1','/api/history','/history'],
-  line   : ['/api/line','/line','/log','/last'],
-  ledOn  : ['/api/led?state=on','/led/on','/api/led/on','/set?led=1'],
-  ledOff : ['/api/led?state=off','/led/off','/api/led/off','/set?led=0'],
-};
-async function fetchFirstJson(cands,opt={}){for(const u of cands){try{const r=await fetch(u,{...opt,cache:'no-store'});if(!r.ok)continue;return await r.json();}catch(e){}}throw new Error('모든 경로 실패');}
-async function fetchFirstText(cands,opt={}){for(const u of cands){try{const r=await fetch(u,{...opt,cache:'no-store'});if(!r.ok)continue;return await r.text();}catch(e){}}return '';}
-async function hitFirst(cands){for(const u of cands){try{const r=await fetch(u,{cache:'no-store'});if(r.ok)return true;}catch(e){}}return false;}
+// ===== Local cache keys =====
+const LS_STATUS='esp32_status_cache';
+const LS_HISTORY='esp32_history_cache';
 
-/* ===== Formatters ===== */
+// ===== Helpers =====
 const fmtT=v=>v==null?'--.-':Number(v).toFixed(1);
 const fmtP=v=>v==null?'--':Math.round(Number(v));
 const fmtC=v=>v==null?'----':Number(v);
 
-/* ===== LED buttons state ===== */
+// 하단 두 줄 포맷
+const makeRawLine = (s)=>{
+  const t1 = s.aht_t!=null ? Number(s.aht_t).toFixed(1) : '--';
+  const h1 = s.aht_h!=null ? Math.round(Number(s.aht_h)) : '--';
+  const t2 = s.scd_t!=null ? Number(s.scd_t).toFixed(1) : '--';
+  const h2 = s.scd_h!=null ? Math.round(Number(s.scd_h)) : '--';
+  const c  = s.co2!=null   ? Number(s.co2)              : '--';
+  const ledNum = (s.led===true||s.led==='on'||s.led===1) ? 1 : 0;
+  return `AHT25: TEMP=${t1},HUM=${h1},LED=${ledNum}\n` +
+         `SCD42: TEMP=${t2},HUM=${h2},CO2=${c},LED=${ledNum}`;
+};
+
 function syncButtons(led){const on=$('#on'),off=$('#off');on.classList.remove('active','dim');off.classList.remove('active','dim');if(led){on.classList.add('active');off.classList.add('dim');}else{off.classList.add('active');on.classList.add('dim');}}
 
-/* ===== Data buffer ===== */
+// ===== Buffers =====
 let histBuf=[];
+let lastStatus = null;
 
-/* ===== Status poll ===== */
-async function refreshFast(){
-  try{
-    const s=await fetchFirstJson(EP.status);
-    const aht_t=s.aht_t??s.aht_temp??s.temp??s.aht?.t;
-    const aht_h=s.aht_h??s.aht_hum ??s.hum ??s.aht?.h;
-    const scd_t=s.scd_t??s.scd_temp??s.st   ??s.scd?.t;
-    const scd_h=s.scd_h??s.scd_hum ??s.sh   ??s.scd?.h;
-    const co2  =s.co2  ??s.scd_co2 ??s.ppm  ??s.scd?.co2;
-    const led  =(s.led=='1'||s.led===1||s.led==='on'||s.led===true);
+// ===== UI update from status =====
+function applyStatus(s, persist=true){
+  lastStatus = s;
+  $('#aht_t').textContent=s.aht_t!=null?Number(s.aht_t).toFixed(1)+' °C':'--.- °C';
+  $('#aht_h').textContent=s.aht_h!=null?Math.round(Number(s.aht_h))+' %':'-- %';
+  $('#scd_t').textContent=s.scd_t!=null?Number(s.scd_t).toFixed(1)+' °C':'--.- °C';
+  $('#scd_h').textContent=s.scd_h!=null?Math.round(Number(s.scd_h))+' %':'-- %';
+  $('#scd_c').textContent=s.co2!=null?(s.co2+' ppm'):'---- ppm';
+  $('#led').textContent='LED: '+((s.led===true||s.led==='on'||s.led===1)?'ON':'OFF');
+  syncButtons(s.led===true||s.led==='on'||s.led===1);
 
-    $('#aht_t').textContent=aht_t!=null?Number(aht_t).toFixed(1)+' °C':'--.- °C';
-    $('#aht_h').textContent=aht_h!=null?Math.round(Number(aht_h))+' %':'-- %';
-    $('#scd_t').textContent=scd_t!=null?Number(scd_t).toFixed(1)+' °C':'--.- °C';
-    $('#scd_h').textContent=scd_h!=null?Math.round(Number(scd_h))+' %':'-- %';
-    $('#scd_c').textContent=co2!=null?(co2+' ppm'):'---- ppm';
-    $('#led').textContent='LED: '+(led?'ON':'OFF');
-    syncButtons(led);
+  $('#banner').textContent=`AHT25/SCD42 연결 OK${s.rssi!=null?` · RSSI: ${s.rssi}[dBm]`:''}`;
+  $('#raw').textContent = makeRawLine(s);
 
-    const line=await fetchFirstText(EP.line);
-    $('#raw').textContent=line||'';
-    $('#banner').textContent=`AHT25/SCD42 연결 OK${s.rssi?` · RSSI: ${s.rssi}[dBm]`:''}`;
-  }catch(e){$('#banner').textContent='통신 오류: '+e.message;}
+  if(persist){
+    try{ localStorage.setItem(LS_STATUS, JSON.stringify(s)); }catch(e){}
+  }
 }
 
-/* ===== History (table + charts) ===== */
-function normalizeRec(o){
-  return {
-    aht_t:Number(o.aht_t ?? o.aht_temp ?? o.temp ?? o.at) || NaN,
-    aht_h:Number(o.aht_h ?? o.aht_hum  ?? o.hum  ?? o.ah) || NaN,
-    scd_t:Number(o.scd_t ?? o.scd_temp ?? o.st) || NaN,
-    scd_h:Number(o.scd_h ?? o.scd_hum  ?? o.sh) || NaN,
-    co2  :Number(o.co2   ?? o.scd_co2  ?? o.ppm)|| NaN,
-    led  :(o.led=='1'||o.led===1||o.led==='on')?1:0
-  };
-}
 function addRowTop(obj, ts){
   const tbody=$('#logtbl');
   const d=ts?new Date(ts):new Date();
@@ -230,38 +208,19 @@ function addRowTop(obj, ts){
     <td>${fmtT(obj.scd_t ?? obj.scd_temp)}</td>
     <td>${fmtP(obj.scd_h ?? obj.scd_hum)}</td>
     <td>${fmtC(obj.co2   ?? obj.scd_co2)}</td>
-    <td>${(obj.led=='1'||obj.led===1||obj.led==='on')?'ON':'OFF'}</td>`;
+    <td>${(obj.led=='1'||obj.led===1||obj.led==='on'||obj.led===true)?'ON':'OFF'}</td>`;
   if(tbody.firstChild) tbody.insertBefore(tr, tbody.firstChild); else tbody.appendChild(tr);
   while(tbody.rows.length>maxRows) tbody.deleteRow(tbody.rows.length-1);
 }
-async function loadHistory60(){
-  try{
-    const list=await fetchFirstJson(EP.history60);
-    const tbody=$('#logtbl'); tbody.innerHTML='';
-    histBuf=[];
-    const now=Date.now();
-    for(let i=list.length-1;i>=0;i--){
-      const it=list[i];
-      const ts=it.timestamp?new Date(it.timestamp):new Date(now-(it.age||0)*60000);
-      addRowTop(it,ts);
-      histBuf.push(normalizeRec(it));
-    }
-    while(histBuf.length>maxRows) histBuf.shift();
-  }catch(e){}
-}
-async function refreshLogOne(){
-  try{
-    const one=await fetchFirstJson(EP.history1);
-    const item=Array.isArray(one)?one[0]:one; if(!item) return;
-    const now=Date.now();
-    const ts=item.timestamp?new Date(item.timestamp):new Date(now-(item.age||0)*60000);
-    addRowTop(item,ts);
-    histBuf.push(normalizeRec(item)); if(histBuf.length>maxRows) histBuf.shift();
-    renderAllCharts();
-  }catch(e){}
+
+function renderAllCharts(){
+  if(!$('#graphSection').classList.contains('open')) return;
+  drawChart($('#chTemp'),[{data:histBuf.map(r=>r.aht_t)},{data:histBuf.map(r=>r.scd_t)}]);
+  drawChart($('#chHum'), [{data:histBuf.map(r=>r.aht_h)},{data:histBuf.map(r=>r.scd_h)}]);
+  drawChart($('#chCO2'), [{data:histBuf.map(r=>r.co2)}]);
 }
 
-/* ===== Mini chart engine ===== */
+// ===== Mini chart engine =====
 const dpr=()=>window.devicePixelRatio||1;
 function prepCanvas(canvas){
   const rect=canvas.getBoundingClientRect(); const w=Math.max(1,rect.width), h=Math.max(1,rect.height);
@@ -305,76 +264,149 @@ function drawChart(canvas, series){
     ctx.stroke();
   }
 }
-function renderAllCharts(){
-  if(!$('#graphSection').classList.contains('open')) return;
-  const aht_t=histBuf.map(r=>r.aht_t), scd_t=histBuf.map(r=>r.scd_t);
-  const aht_h=histBuf.map(r=>r.aht_h), scd_h=histBuf.map(r=>r.scd_h);
-  const co2  =histBuf.map(r=>r.co2);
-  drawChart($('#chTemp'),[{data:aht_t},{data:scd_t}]);
-  drawChart($('#chHum'), [{data:aht_h},{data:scd_h}]);
-  drawChart($('#chCO2'), [{data:co2}]);
+
+// ===== Networking (calls fake /api served by MQTT overlay) =====
+const EP = {
+  status : ['/api/status'],
+  history60: ['/api/history?limit=60'],
+  history1 : ['/api/history?limit=1'],
+  line   : ['/api/line'],
+  ledOn  : ['/api/led?state=on'],
+  ledOff : ['/api/led?state=off'],
+};
+async function fetchJson(u){const r=await fetch(u,{cache:'no-store'}); if(!r.ok) throw new Error('net'); return r.json();}
+async function fetchText(u){const r=await fetch(u,{cache:'no-store'}); if(!r.ok) return ''; return r.text();}
+
+async function refreshFast(){
+  try{
+    const s=await fetchJson(EP.status[0]);
+    applyStatus(s);
+    const ln=await fetchText(EP.line[0]); if(ln) $('#raw').textContent=ln;
+  }catch(e){ $('#banner').textContent='통신 오류: 네트워크 일시 장애'; }
+}
+async function loadHistory60(){
+  try{
+    const list=await fetchJson(EP.history60[0]);
+    const tbody=$('#logtbl'); tbody.innerHTML='';
+    histBuf = list.map(x=>({
+      aht_t:Number(x.aht_t ?? x.aht_temp ?? x.temp) || NaN,
+      aht_h:Number(x.aht_h ?? x.aht_hum  ?? x.hum ) || NaN,
+      scd_t:Number(x.scd_t ?? x.scd_temp) || NaN,
+      scd_h:Number(x.scd_h ?? x.scd_hum ) || NaN,
+      co2  :Number(x.co2   ?? x.scd_co2  ?? x.ppm) || NaN,
+      led  :(x.led=='1'||x.led===1||x.led==='on'||x.led===true)?1:0,
+      ts   :x.timestamp?new Date(x.timestamp):new Date()
+    }));
+    for(const r of histBuf.slice(-maxRows)){ addRowTop(r, r.ts); }
+    try{ localStorage.setItem(LS_HISTORY, JSON.stringify(histBuf)); }catch(e){}
+  }catch(e){}
+}
+async function refreshLogOne(){
+  try{
+    const one=await fetchJson(EP.history1[0]);
+    const item=Array.isArray(one)?one[0]:one; if(!item) return;
+    addRowTop(item,new Date());
+    const rec={
+      aht_t:Number(item.aht_t ?? item.aht_temp ?? item.temp) || NaN,
+      aht_h:Number(item.aht_h ?? item.aht_hum  ?? item.hum ) || NaN,
+      scd_t:Number(item.scd_t ?? item.scd_temp) || NaN,
+      scd_h:Number(item.scd_h ?? item.scd_hum ) || NaN,
+      co2  :Number(item.co2   ?? item.scd_co2  ?? item.ppm) || NaN,
+      led  :(item.led=='1'||item.led===1||item.led==='on'||item.led===true)?1:0,
+      ts   :new Date()
+    };
+    histBuf.push(rec); while(histBuf.length>maxRows) histBuf.shift();
+    try{ localStorage.setItem(LS_HISTORY, JSON.stringify(histBuf)); }catch(e){}
+    renderAllCharts();
+  }catch(e){}
 }
 
-/* ===== Boot ===== */
+// ===== Boot: restore cache then poll =====
+(function restoreFromCache(){
+  try{
+    const s = JSON.parse(localStorage.getItem(LS_STATUS) || 'null');
+    if(s){ applyStatus(s, false); }
+  }catch(e){}
+  try{
+    const h = JSON.parse(localStorage.getItem(LS_HISTORY) || '[]');
+    if(Array.isArray(h) && h.length){
+      histBuf = h;
+      const tbody=$('#logtbl'); tbody.innerHTML='';
+      for(const r of histBuf.slice(-maxRows)) addRowTop(r, r.ts||new Date());
+    }
+  }catch(e){}
+})();
+$('#on').onclick  = async()=>{await fetch(EP.ledOn[0],{cache:'no-store'});  };
+$('#off').onclick = async()=>{await fetch(EP.ledOff[0],{cache:'no-store'}); };
 (async()=>{
   await loadHistory60();
   await refreshFast();
   setInterval(refreshFast, fastMs);
   setInterval(refreshLogOne, 60000);
-  $('#on').onclick  = async()=>{await hitFirst(EP.ledOn);  refreshFast();};
-  $('#off').onclick = async()=>{await hitFirst(EP.ledOff); refreshFast();};
 })();
 </script>
 
-<!-- ===== MQTT/WSS 오버레이: /api/* 를 MQTT 데이터로 대체 (디자인/레이아웃 불변) ===== -->
+<!-- ===== MQTT/WSS overlay: supplies /api/* from MQTT, persists cache ===== -->
 <script src="https://unpkg.com/mqtt/dist/mqtt.min.js"></script>
 <script>
 (function(){
-  // 브로커(스케치와 동일)
   const HOST="6c56aefe0ddb4d57977c735f5070abe8.s1.eu.hivemq.cloud";
   const PORT=8884, PATH="/mqtt", USER="mqtt_ESP32", PASS="gomqtt_ESP32";
-
-  // MQTT 상태 버퍼 → 원본 함수들이 fetch로 가져가게 위조
-  const statusBuf = { aht_t:null,aht_h:null,scd_t:null,scd_h:null,co2:null,rssi:null,led:false };
-  const historyBuf = []; // 최근 60개
+  const LS_STATUS='esp32_status_cache';
+  const LS_HISTORY='esp32_history_cache';
   const MAX=60;
-  let chip=null, client=null;
 
-  // fetch/XHR 인터셉트: 원본 JS는 그대로, 네트워크만 우리가 답변
+  const statusBuf = { aht_t:null,aht_h:null,scd_t:null,scd_h:null,co2:null,rssi:null,led:false };
+  const historyBuf = [];
+
+  // restore cache so values show immediately
+  try{
+    const s = JSON.parse(localStorage.getItem(LS_STATUS)||'null');
+    if(s && typeof s==='object'){ Object.assign(statusBuf, s); }
+    const h = JSON.parse(localStorage.getItem(LS_HISTORY)||'[]');
+    if(Array.isArray(h)) { for(const r of h.slice(-MAX)) historyBuf.push(r); }
+  }catch(e){}
+
   const realFetch = window.fetch.bind(window);
   window.fetch = (input, init={})=>{
     const url=(typeof input==='string')?input:(input&&input.url)||'';
-    // /api/status
     if(url.includes('/api/status') || url.endsWith('/status') || url.endsWith('/readings') || url.endsWith('/get')){
       return Promise.resolve(new Response(JSON.stringify(statusBuf),{status:200,headers:{'Content-Type':'application/json'}}));
     }
-    // /api/history
     if(url.includes('/api/history')){
       const params=new URL(url,location.origin).searchParams;
       const lim=parseInt(params.get('limit')||'60',10);
       const arr=historyBuf.slice(-lim).map(x=>({ ...x }));
       return Promise.resolve(new Response(JSON.stringify(arr),{status:200,headers:{'Content-Type':'application/json'}}));
     }
-    // /api/line → 임의 텍스트
+    // 두 줄 포맷 반환
     if(url.includes('/api/line') || url.endsWith('/line') || url.endsWith('/log') || url.endsWith('/last')){
       const s=statusBuf;
-      const line = `AHT:${s.aht_t??'-'}/${s.aht_h??'-'} · SCD:${s.scd_t??'-'}/${s.scd_h??'-'} · CO2:${s.co2??'-'} · RSSI:${s.rssi??'-'} dBm`;
+      const t1 = s.aht_t!=null ? Number(s.aht_t).toFixed(1) : '--';
+      const h1 = s.aht_h!=null ? Math.round(Number(s.aht_h)) : '--';
+      const t2 = s.scd_t!=null ? Number(s.scd_t).toFixed(1) : '--';
+      const h2 = s.scd_h!=null ? Math.round(Number(s.scd_h)) : '--';
+      const c  = s.co2!=null   ? Number(s.co2)              : '--';
+      const ledNum = (s.led===true||s.led==='on'||s.led===1) ? 1 : 0;
+      const line = `AHT25: TEMP=${t1},HUM=${h1},LED=${ledNum}\n` +
+                   `SCD42: TEMP=${t2},HUM=${h2},CO2=${c},LED=${ledNum}`;
       return Promise.resolve(new Response(line,{status:200,headers:{'Content-Type':'text/plain'}}));
     }
-    // /api/led
     if(url.includes('/api/led')){
       const u=new URL(url,location.origin);
       const state=(u.searchParams.get('state')||'').toLowerCase()==='on'?'on':'off';
       if(client && client.connected && chip){
         client.publish(`esp32/${chip}/cmd/led`, state, {qos:1});
-        statusBuf.led=(state==='on'); // 낙관 반영
+        statusBuf.led=(state==='on');
+        persist();
       }
       return Promise.resolve(new Response('OK',{status:200,headers:{'Content-Type':'text/plain'}}));
     }
     return realFetch(input, init);
   };
 
-  // MQTT 연결
+  // MQTT connect
+  let chip=null, client=null;
   const url=`wss://${HOST}:${PORT}${PATH}`;
   const cid='web_'+Math.random().toString(16).slice(2);
   client=mqtt.connect(url,{username:USER,password:PASS,clientId:cid,clean:true,keepalive:30,connectTimeout:10000,protocolVersion:4});
@@ -384,6 +416,11 @@ function renderAllCharts(){
     client.subscribe('esp32/+/state/led',{qos:1});
   });
 
+  function persist(){
+    try{ localStorage.setItem(LS_STATUS, JSON.stringify(statusBuf)); }catch(e){}
+    try{ localStorage.setItem(LS_HISTORY, JSON.stringify(historyBuf)); }catch(e){}
+  }
+
   client.on('message', (topic, payload)=>{
     try{
       const seg=topic.split('/'); if(seg[0]!=='esp32'||seg.length<3) return;
@@ -391,7 +428,6 @@ function renderAllCharts(){
 
       if(topic.endsWith('/status')){
         const s=JSON.parse(payload.toString());
-        // 상태 버퍼 업데이트 (원본 포맷 호환 키)
         statusBuf.aht_t = s.aht_t ?? s.aht ?? s.at ?? null;
         statusBuf.aht_h = s.aht_h ?? s.ah  ?? null;
         statusBuf.scd_t = s.scd_t ?? s.st  ?? null;
@@ -400,14 +436,19 @@ function renderAllCharts(){
         statusBuf.rssi  = s.rssi ?? null;
         if(typeof s.led!=='undefined') statusBuf.led = (s.led===true || s.led==='on' || s.led===1);
 
-        // 히스토리 버퍼
-        historyBuf.push({ aht_t:statusBuf.aht_t, aht_h:statusBuf.aht_h, scd_t:statusBuf.scd_t, scd_h:statusBuf.scd_h, co2:statusBuf.co2, led:statusBuf.led, timestamp:new Date().toISOString() });
+        historyBuf.push({
+          aht_t:statusBuf.aht_t, aht_h:statusBuf.aht_h,
+          scd_t:statusBuf.scd_t, scd_h:statusBuf.scd_h,
+          co2:statusBuf.co2, led:(statusBuf.led?1:0),
+          timestamp:new Date().toISOString()
+        });
         while(historyBuf.length>MAX) historyBuf.shift();
+        persist();
       }else if(topic.endsWith('/state/led')){
         const on=(payload.toString().trim().toLowerCase()==='on');
-        statusBuf.led=on;
+        statusBuf.led=on; persist();
       }
-    }catch(e){/* ignore */}
+    }catch(e){}
   });
 })();
 </script>
