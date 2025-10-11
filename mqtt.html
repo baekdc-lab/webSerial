@@ -130,6 +130,10 @@ th:nth-child(7){width:52px}
 const $=s=>document.querySelector(s);
 const fastMs=3000, maxRows=60;
 
+// === Minute key & de-dup for table ===
+const minuteKey = (ts)=> Math.floor((ts instanceof Date ? ts : new Date(ts)).getTime()/60000);
+let lastTableKey = null;
+
 // ===== Theme =====
 const themeToggle=$('#themeToggle');
 function applyTheme(t){
@@ -198,9 +202,18 @@ function applyStatus(s, persist=true){
 function addRowTop(obj, ts){
   const tbody=$('#logtbl');
   const d=ts?new Date(ts):new Date();
+  d.setSeconds(0,0); // 분 단위 고정
+  const key = minuteKey(d);
+
+  // 최상단이 같은 분이면 추가 안 함
+  const first = tbody.firstElementChild;
+  if (first && Number(first.dataset.key) === key) return;
+  if (lastTableKey !== null && lastTableKey === key) return;
+
   const hh=String(d.getHours()).padStart(2,'0');
   const mm=String(d.getMinutes()).padStart(2,'0');
   const tr=document.createElement('tr');
+  tr.dataset.key = key;
   tr.innerHTML=`
     <td>${hh}:${mm}</td>
     <td>${fmtT(obj.aht_t ?? obj.aht_temp ?? obj.temp)}</td>
@@ -211,6 +224,7 @@ function addRowTop(obj, ts){
     <td>${(obj.led=='1'||obj.led===1||obj.led==='on'||obj.led===true)?'ON':'OFF'}</td>`;
   if(tbody.firstChild) tbody.insertBefore(tr, tbody.firstChild); else tbody.appendChild(tr);
   while(tbody.rows.length>maxRows) tbody.deleteRow(tbody.rows.length-1);
+  lastTableKey = key;
 }
 
 function renderAllCharts(){
@@ -277,6 +291,41 @@ const EP = {
 async function fetchJson(u){const r=await fetch(u,{cache:'no-store'}); if(!r.ok) throw new Error('net'); return r.json();}
 async function fetchText(u){const r=await fetch(u,{cache:'no-store'}); if(!r.ok) return ''; return r.text();}
 
+// ===== Pollers =====
+async function loadHistory60(){
+  try{
+    const list=await fetchJson(EP.history60[0]);
+
+    // --- 분(minute) 기준으로 최신만 남기기 ---
+    const byMin = new Map();
+    for(const it of list){
+      const ts = it.timestamp ? new Date(it.timestamp) : new Date();
+      ts.setSeconds(0,0);
+      const k = minuteKey(ts);
+      byMin.set(k, {...it, _ts: ts});
+    }
+    const uniq = Array.from(byMin.entries())
+                      .sort((a,b)=>a[0]-b[0])
+                      .map(([,v])=>v)
+                      .slice(-maxRows);
+    // -----------------------------------------
+
+    const tbody=$('#logtbl'); tbody.innerHTML='';
+    histBuf = uniq.map(x=>({
+      aht_t:Number(x.aht_t ?? x.aht_temp ?? x.temp) || NaN,
+      aht_h:Number(x.aht_h ?? x.aht_hum  ?? x.hum ) || NaN,
+      scd_t:Number(x.scd_t ?? x.scd_temp) || NaN,
+      scd_h:Number(x.scd_h ?? x.scd_hum ) || NaN,
+      co2  :Number(x.co2   ?? x.scd_co2  ?? x.ppm) || NaN,
+      led  :(x.led=='1'||x.led===1||x.led==='on'||x.led===true)?1:0,
+      ts   :x._ts || (x.timestamp? new Date(x.timestamp): new Date())
+    }));
+
+    for(const r of histBuf){ addRowTop(r, r.ts); }
+    try{ localStorage.setItem(LS_HISTORY, JSON.stringify(histBuf)); }catch(e){}
+  }catch(e){}
+}
+
 async function refreshFast(){
   try{
     const s=await fetchJson(EP.status[0]);
@@ -284,28 +333,18 @@ async function refreshFast(){
     const ln=await fetchText(EP.line[0]); if(ln) $('#raw').textContent=ln;
   }catch(e){ $('#banner').textContent='통신 오류: 네트워크 일시 장애'; }
 }
-async function loadHistory60(){
-  try{
-    const list=await fetchJson(EP.history60[0]);
-    const tbody=$('#logtbl'); tbody.innerHTML='';
-    histBuf = list.map(x=>({
-      aht_t:Number(x.aht_t ?? x.aht_temp ?? x.temp) || NaN,
-      aht_h:Number(x.aht_h ?? x.aht_hum  ?? x.hum ) || NaN,
-      scd_t:Number(x.scd_t ?? x.scd_temp) || NaN,
-      scd_h:Number(x.scd_h ?? x.scd_hum ) || NaN,
-      co2  :Number(x.co2   ?? x.scd_co2  ?? x.ppm) || NaN,
-      led  :(x.led=='1'||x.led===1||x.led==='on'||x.led===true)?1:0,
-      ts   :x.timestamp?new Date(x.timestamp):new Date()
-    }));
-    for(const r of histBuf.slice(-maxRows)){ addRowTop(r, r.ts); }
-    try{ localStorage.setItem(LS_HISTORY, JSON.stringify(histBuf)); }catch(e){}
-  }catch(e){}
-}
+
 async function refreshLogOne(){
   try{
     const one=await fetchJson(EP.history1[0]);
     const item=Array.isArray(one)?one[0]:one; if(!item) return;
-    addRowTop(item,new Date());
+
+    const now = new Date();
+    now.setSeconds(0,0);
+    const k = minuteKey(now);
+    if (lastTableKey !== null && lastTableKey === k) return; // 같은 분이면 추가 안 함
+
+    addRowTop(item, now);
     const rec={
       aht_t:Number(item.aht_t ?? item.aht_temp ?? item.temp) || NaN,
       aht_h:Number(item.aht_h ?? item.aht_hum  ?? item.hum ) || NaN,
@@ -313,7 +352,7 @@ async function refreshLogOne(){
       scd_h:Number(item.scd_h ?? item.scd_hum ) || NaN,
       co2  :Number(item.co2   ?? item.scd_co2  ?? item.ppm) || NaN,
       led  :(item.led=='1'||item.led===1||item.led==='on'||item.led===true)?1:0,
-      ts   :new Date()
+      ts   : now
     };
     histBuf.push(rec); while(histBuf.length>maxRows) histBuf.shift();
     try{ localStorage.setItem(LS_HISTORY, JSON.stringify(histBuf)); }catch(e){}
@@ -346,7 +385,7 @@ $('#off').onclick = async()=>{await fetch(EP.ledOff[0],{cache:'no-store'}); };
 })();
 </script>
 
-<!-- ===== MQTT/WSS overlay: supplies /api/* from MQTT, persists cache ===== -->
+<!-- ===== MQTT/WSS overlay: supplies /api/* from MQTT, persists cache (분당 1개) ===== -->
 <script src="https://unpkg.com/mqtt/dist/mqtt.min.js"></script>
 <script>
 (function(){
@@ -358,6 +397,7 @@ $('#off').onclick = async()=>{await fetch(EP.ledOff[0],{cache:'no-store'}); };
 
   const statusBuf = { aht_t:null,aht_h:null,scd_t:null,scd_h:null,co2:null,rssi:null,led:false };
   const historyBuf = [];
+  let lastHistKey = null; // 오버레이 측 히스토리의 마지막 분 키
 
   // restore cache so values show immediately
   try{
@@ -365,6 +405,12 @@ $('#off').onclick = async()=>{await fetch(EP.ledOff[0],{cache:'no-store'}); };
     if(s && typeof s==='object'){ Object.assign(statusBuf, s); }
     const h = JSON.parse(localStorage.getItem(LS_HISTORY)||'[]');
     if(Array.isArray(h)) { for(const r of h.slice(-MAX)) historyBuf.push(r); }
+    // 복원 시 마지막 분 키 갱신
+    if(historyBuf.length){
+      const lastTs = new Date(historyBuf[historyBuf.length-1].timestamp || Date.now());
+      lastTs.setSeconds(0,0);
+      lastHistKey = Math.floor(lastTs.getTime()/60000);
+    }
   }catch(e){}
 
   const realFetch = window.fetch.bind(window);
@@ -436,14 +482,19 @@ $('#off').onclick = async()=>{await fetch(EP.ledOff[0],{cache:'no-store'}); };
         statusBuf.rssi  = s.rssi ?? null;
         if(typeof s.led!=='undefined') statusBuf.led = (s.led===true || s.led==='on' || s.led===1);
 
-        historyBuf.push({
-          aht_t:statusBuf.aht_t, aht_h:statusBuf.aht_h,
-          scd_t:statusBuf.scd_t, scd_h:statusBuf.scd_h,
-          co2:statusBuf.co2, led:(statusBuf.led?1:0),
-          timestamp:new Date().toISOString()
-        });
-        while(historyBuf.length>MAX) historyBuf.shift();
-        persist();
+        const ts = new Date(); ts.setSeconds(0,0);
+        const k = Math.floor(ts.getTime()/60000);
+        if (lastHistKey === null || lastHistKey !== k) {
+          historyBuf.push({
+            aht_t:statusBuf.aht_t, aht_h:statusBuf.aht_h,
+            scd_t:statusBuf.scd_t, scd_h:statusBuf.scd_h,
+            co2:statusBuf.co2, led:(statusBuf.led?1:0),
+            timestamp: ts.toISOString()
+          });
+          while(historyBuf.length>MAX) historyBuf.shift();
+          lastHistKey = k;
+          persist();
+        }
       }else if(topic.endsWith('/state/led')){
         const on=(payload.toString().trim().toLowerCase()==='on');
         statusBuf.led=on; persist();
