@@ -22,13 +22,14 @@ body{margin:0;background:var(--bg);color:var(--txt);font:16px/1.5 system-ui,Sego
 .wrap{max-width:900px;margin:20px auto;padding:0 12px}
 .card{background:var(--card);border-radius:16px;padding:16px;box-shadow:0 10px 30px rgba(0,0,0,.25)}
 h1{margin:0 0 8px;font-size:26px;font-weight:800;display:flex;justify-content:space-between;align-items:center}
-/* 상단 부제 */
+/* 상단 부제(요청 크기) */
 .mut{color:var(--mut);margin:0 0 8px;font-size:16px}
 @media (max-width:480px){ .mut{font-size:15px} }
-/* 배너/상태(“MQTT 연결 OK”) */
+/* 배너/상태(요청 12px) */
 .status{margin-top:8px;color:var(--mut);font-size:12px;white-space:pre-line}
 hr{border:0;border-top:1px solid var(--line);margin:10px 0}
 .theme-toggle{cursor:pointer;font-size:22px}
+/* 카드 상단 KPI */
 .grid{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:12px;margin-top:6px}
 .tile{background:#0f1526;border-radius:12px;padding:12px;text-align:center;min-height:76px}
 :root.light .tile{background:#eef1f7}
@@ -48,7 +49,9 @@ hr{border:0;border-top:1px solid var(--line);margin:10px 0}
   .btn{min-width:84px;padding:9px 12px;font-size:15px;border-radius:11px}
   #led{font-size:12px}
 }
+/* 섹션 토글 */
 .btn.toggle{background:transparent;border:1px solid var(--btn-border);color:var(--txt);min-width:120px}
+/* 접기/펼치기 */
 .collapsible{max-height:0;overflow:hidden;transition:max-height .5s ease,padding .3s ease,opacity .3s ease;opacity:0}
 .collapsible.open{max-height:2000px;padding-top:6px;opacity:1}
 /* 테이블: 10행 높이 스크롤, 최신이 위 */
@@ -101,7 +104,7 @@ th:nth-child(6){width:72px} th:nth-child(7){width:52px}
     <hr>
 
     <div class="toggle-row">
-      <button class="btn toggle" id="toggleTable">📋 테이블 보기</button>
+      <button class="btn toggle" id="toggleTable">📋 테이블 숨기기</button>
       <button class="btn toggle" id="toggleGraph">📊 그래프 보기</button>
     </div>
 
@@ -153,6 +156,7 @@ th:nth-child(6){width:72px} th:nth-child(7){width:52px}
 
 <script src="https://unpkg.com/mqtt/dist/mqtt.min.js"></script>
 <script>
+/* ===== 공용 ===== */
 const $=s=>document.querySelector(s);
 const MAX_ROWS=60;
 
@@ -161,6 +165,19 @@ const themeToggle=$('#themeToggle');
 function applyTheme(t){document.documentElement.classList.toggle('light',t==='light');themeToggle.textContent=(t==='light')?'☀️':'🌙';renderAllCharts();}
 applyTheme(localStorage.getItem('theme')||'dark');
 themeToggle.onclick=()=>{const t=document.documentElement.classList.contains('light')?'dark':'light';applyTheme(t);localStorage.setItem('theme',t);};
+
+/* ===== 섹션 토글(복구) ===== */
+function setToggle(btn, section, showText, hideText){
+  const sync=()=>{ btn.textContent = section.classList.contains('open') ? hideText : showText; };
+  btn.addEventListener('click', ()=>{
+    section.classList.toggle('open');
+    sync();
+    if(section.id==='graphSection' && section.classList.contains('open')){ renderAllCharts(); }
+  });
+  sync();
+}
+setToggle($('#toggleTable'), $('#tableSection'), '📋 테이블 보기', '📋 테이블 숨기기');
+setToggle($('#toggleGraph'), $('#graphSection'), '📊 그래프 보기', '📊 그래프 숨기기');
 
 /* ===== MQTT/토픽 ===== */
 const DEV_ID = localStorage.getItem('devId') || '';
@@ -173,8 +190,6 @@ const t_any_last1  = base+'+/last1';
 /* ===== 유틸/검증 ===== */
 let histBuf=[];       // [{..., ts}]
 let lastGood=null;    // 최근 정상값
-window.__lastRSSI='--';
-
 const F=Number.isFinite;
 const inTemp=v=>F(v)&&v>-30&&v<85;
 const inHum =v=>F(v)&&v>=1&&v<=100;
@@ -190,6 +205,17 @@ function normalize(o){
     rssi:+o.rssi, ts:o.ts?+o.ts:undefined
   };
 }
+
+/* ===== RSSI 지속(리플래시 복구) ===== */
+function readSavedRSSI(){
+  const v = localStorage.getItem('lastRSSI');
+  const n = v===null ? NaN : +v;
+  return Number.isFinite(n) ? n : '--';
+}
+function saveRSSI(v){
+  if(Number.isFinite(+v)) localStorage.setItem('lastRSSI', String(+v));
+}
+window.__lastRSSI = readSavedRSSI();
 
 /* ===== 로컬 캐시 ===== */
 function saveCache(){ localStorage.setItem('histBuf', JSON.stringify(histBuf.slice(-MAX_ROWS))); }
@@ -209,26 +235,17 @@ function loadCache(){
 
 /* ===== 현재 분 샘플 누적 → 평균 산출 ===== */
 let curAgg = { tsMin:null, sum:{aht_t:0,aht_h:0,scd_t:0,scd_h:0,co2:0 }, count:0, led:false, rssi:NaN };
-
 function addSample(o){
   const m = nowMinute();
   if (curAgg.tsMin===null) curAgg.tsMin=m;
-  if (m!==curAgg.tsMin){
-    finalizeMinuteAverage();          // 이전 분 마감
-    curAgg.tsMin=m;
-  }
+  if (m!==curAgg.tsMin){ finalizeMinuteAverage(); curAgg.tsMin=m; }
   if (isGood(o)){
-    curAgg.sum.aht_t += o.aht_t;
-    curAgg.sum.aht_h += o.aht_h;
-    curAgg.sum.scd_t += o.scd_t;
-    curAgg.sum.scd_h += o.scd_h;
-    curAgg.sum.co2   += o.co2;
-    curAgg.count++;
-    curAgg.led = o.led;
-    curAgg.rssi = Number.isFinite(+o.rssi)? +o.rssi : curAgg.rssi;
+    curAgg.sum.aht_t += o.aht_t; curAgg.sum.aht_h += o.aht_h;
+    curAgg.sum.scd_t += o.scd_t; curAgg.sum.scd_h += o.scd_h;
+    curAgg.sum.co2   += o.co2;   curAgg.count++;
+    curAgg.led = o.led;          curAgg.rssi = Number.isFinite(+o.rssi)? +o.rssi : curAgg.rssi;
   }
 }
-
 function finalizeMinuteAverage(){
   if (curAgg.count>0){
     const avg = {
@@ -261,14 +278,16 @@ function updateUIWith(o){
 
   syncLedUI(!!merged.led);
 
-  const rssiV = F(+merged.rssi)?(+merged.rssi):window.__lastRSSI;
+  const rssiV = Number.isFinite(+merged.rssi)?(+merged.rssi):window.__lastRSSI;
+  saveRSSI(rssiV);
+  window.__lastRSSI = rssiV;
   $('#rawbar').textContent =
     `AHT25 : ${merged.aht_t.toFixed(1)} °C | ${Math.round(merged.aht_h)} % | LED=${merged.led?'ON':'OFF'}\n`+
     `SCD42 : ${merged.scd_t.toFixed(1)} °C | ${Math.round(merged.scd_h)} % | ${Math.round(merged.co2)} ppm | LED=${merged.led?'ON':'OFF'}\n`+
     `RSSI: ${rssiV} [dBm]`;
 }
 
-/* ===== 테이블(최신이 위) ===== */
+/* ===== 테이블(최신이 위, 최대 60행) ===== */
 function rebuildTable(){
   const tbody=$('#logtbl');
   const len=Math.min(histBuf.length,MAX_ROWS);
@@ -333,21 +352,29 @@ function renderAllCharts(){
   drawChart($('#chCO2'), [{data:co2,color:get('--c-co2')}]);
 }
 
-/* ===== 시작: 캐시 먼저 표시 ===== */
+/* ===== 시작: 캐시/마지막 RSSI로 즉시 표시 ===== */
 if(loadCache()){
   const last=histBuf[histBuf.length-1];
-  if(last){ updateUIWith(last); rebuildTable(); renderAllCharts(); }
+  if(last){
+    if(!Number.isFinite(+last.rssi)) last.rssi = readSavedRSSI();
+    updateUIWith(last); rebuildTable(); renderAllCharts();
+  }else{
+    const rssiV = readSavedRSSI();
+    $('#rawbar').textContent = `AHT25 : --.- °C | -- % | LED=--\nSCD42 : --.- °C | -- % | ---- ppm | LED=--\nRSSI: ${rssiV} [dBm]`;
+  }
+}else{
+  const rssiV = readSavedRSSI();
+  $('#rawbar').textContent = `AHT25 : --.- °C | -- % | LED=--\nSCD42 : --.- °C | -- % | ---- ppm | LED=--\nRSSI: ${rssiV} [dBm]`;
 }
 
 /* ===== MQTT 연결 ===== */
 let client;
 (function connectMQTT(){
   const url=`wss://${MQTT_C.host}:${MQTT_C.port}/mqtt`;
-  client=mqtt.connect(url,{clientId:MQTT_C.clientId,username:MQTT_C.username,password:MQTT_C.password,clean:true,reconnectPeriod:2000,connectTimeout:8000});
+  client=mqtt.connect(url,{clientId:MQTT_C.clientId,username:'mqtt_ESP32',password:'gomqtt_ESP32',clean:true,reconnectPeriod:2000,connectTimeout:8000});
   client.on('connect',()=>{
     $('#banner').textContent='MQTT 연결 OK';
     client.subscribe([t_any_status,t_any_hist60,t_any_last1]);
-    // history 로 초기 채움 뒤, 현재 분부터 누적
     curAgg.tsMin = nowMinute();
   });
   client.on('reconnect',()=>{$('#banner').textContent='MQTT 재접속 중...';});
@@ -358,13 +385,11 @@ let client;
       const parsed = JSON.parse(msg);
       if(topic.endsWith('/status')){
         const no=normalize(parsed);
-        updateUIWith(no); window.__lastRSSI=no.rssi;
-        addSample(no);                    // ⬅ 샘플 누적
+        updateUIWith(no); addSample(no);
       }
       if(topic.endsWith('/last1')){
         const no=normalize(parsed);
-        updateUIWith(no); window.__lastRSSI=no.rssi;
-        finalizeMinuteAverage();          // ⬅ 해당 분 평균을 테이블/그래프에 반영
+        updateUIWith(no); finalizeMinuteAverage();
       }
       if(topic.endsWith('/history60')){
         const arr=Array.isArray(parsed)?parsed:[];
@@ -372,10 +397,18 @@ let client;
           const baseTs=nowMinute()-(arr.length-1)*60000;
           const mapped=arr.map((x,i)=>({...normalize(x), ts:baseTs+i*60000})).filter(isGood);
           if(mapped.length){
-            histBuf=mapped.slice(-MAX_ROWS); saveCache();
-            const last=histBuf[histBuf.length-1]; updateUIWith(last); rebuildTable(); renderAllCharts();
-            // history 뒤 실시간 누적 준비
-            curAgg = { tsMin: nowMinute(), sum:{aht_t:0,aht_h:0,scd_t:0,scd_h:0,co2:0 }, count:0, led:last.led, rssi:last.rssi };
+            if(histBuf.length===0 || mapped.length>histBuf.length){
+              histBuf = mapped.slice(-MAX_ROWS);
+            }else{
+              const map = new Map(histBuf.map(r=>[r.ts, r]));
+              for(const r of mapped) map.set(r.ts, r);
+              histBuf = Array.from(map.values()).sort((a,b)=>a.ts-b.ts).slice(-MAX_ROWS);
+            }
+            saveCache();
+            const last=histBuf[histBuf.length-1];
+            if(last){ updateUIWith(last); }
+            rebuildTable(); renderAllCharts();
+            curAgg = { tsMin: nowMinute(), sum:{aht_t:0,aht_h:0,scd_t:0,scd_h:0,co2:0 }, count:0, led:last?.led||false, rssi:last?.rssi };
           }
         }
       }
