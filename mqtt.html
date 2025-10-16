@@ -85,7 +85,6 @@ th:nth-child(1){width:68px}
       <button class="btn toggle" id="toggleGraph">📊 그래프 보기</button>
     </div>
 
-    <!-- 기본 접힘 -->
     <div id="tableSection" class="collapsible">
       <div class="tablewrap">
         <div class="tablebox">
@@ -128,14 +127,16 @@ th:nth-child(1){width:68px}
       </div>
     </div>
 
-    <!-- ✅ 시리얼 포맷 그대로 표시 -->
     <div id="rawbar">—</div>
   </div>
 </div>
 
 <script src="https://unpkg.com/mqtt/dist/mqtt.min.js"></script>
 <script>
-const MAX_ROWS=60,TABLE_ROWS=10;let currentDevId=null;const $=s=>document.querySelector(s);
+/* ===== 기본 ===== */
+const MAX_ROWS=60, TABLE_ROWS=10;
+let currentDevId=null, currentLed=false;   // <- 실시간 LED 상태 저장
+const $=s=>document.querySelector(s);
 
 /* 테마 */
 const themeToggle=$('#themeToggle');
@@ -156,16 +157,38 @@ const t_status='things/+/status',t_hist60='things/+/history60',t_last1='things/+
 const banner=$('#banner');function setBanner(m){banner.textContent=m;}
 
 /* 버퍼 */
-let histBuf=[],liveBuf=[];const F=Number.isFinite;
+let histBuf=[], liveBuf=[]; const F=Number.isFinite;
 
 /* 유틸 */
 function normalize(o){return{aht_t:o.aht_t==null?NaN:+o.aht_t,aht_h:o.aht_h==null?NaN:+o.aht_h,scd_t:o.scd_t==null?NaN:+o.scd_t,scd_h:o.scd_h==null?NaN:+o.scd_h,co2:o.co2==null?NaN:+o.co2,led:o.led==='on'||o.led===1||o.led===true,rssi:o.rssi==null?NaN:+o.rssi,ts:o.ts?+o.ts:Date.now(),age:F(+o.age)?+o.age:NaN};}
-function minuteAverageFromLive(smp){const by=new Map();for(const s of smp){const k=Math.floor(s.ts/60000);if(!by.has(k))by.set(k,{n:0,aht_t:0,aht_h:0,scd_t:0,scd_h:0,co2:0,led:false});const b=by.get(k);function acc(n){if(F(s[n])){b[n]+=s[n];b.n++;}}acc('aht_t');acc('aht_h');acc('scd_t');acc('scd_h');acc('co2');b.led=!!s.led;}const out=[],keys=[...by.keys()].sort((a,b)=>a-b).slice(-60);for(const k of keys){const b=by.get(k),n=Math.max(1,b.n);out.push({aht_t:b.n?b.aht_t/n:NaN,aht_h:b.n?b.aht_h/n:NaN,scd_t:b.n?b.scd_t/n:NaN,scd_h:b.n?b.scd_h/n:NaN,co2:b.n?b.co2/n:NaN,led:b.led});}return out;}
+
+/* 5초 샘플 → 1분 평균 (LED = 분중 한 번이라도 ON이면 ON) */
+function minuteAverageFromLive(samples){
+  const by=new Map();
+  for(const s of samples){
+    const k=Math.floor(s.ts/60000);
+    if(!by.has(k)) by.set(k,{n:0,aht_t:0,aht_h:0,scd_t:0,scd_h:0,co2:0,led:false});
+    const b=by.get(k);
+    function acc(n){ if(F(s[n])){ b[n]+=s[n]; b.n++; } }
+    acc('aht_t'); acc('aht_h'); acc('scd_t'); acc('scd_h'); acc('co2');
+    b.led = b.led || !!s.led;            // ✅ 여기!
+  }
+  const out=[], keys=[...by.keys()].sort((a,b)=>a-b).slice(-60);
+  for(const k of keys){
+    const b=by.get(k), n=Math.max(1,b.n);
+    out.push({ aht_t:b.n?b.aht_t/n:NaN, aht_h:b.n?b.aht_h/n:NaN,
+               scd_t:b.n?b.scd_t/n:NaN, scd_h:b.n?b.scd_h/n:NaN,
+               co2:b.n?b.co2/n:NaN, led:b.led });
+  }
+  return out;
+}
+
+/* RSSI 저장 */
 function readSavedRSSI(){const v=localStorage.getItem('lastRSSI');const n=v===null?NaN:+v;return Number.isFinite(n)?n:'--';}
 function saveRSSI(v){if(Number.isFinite(+v))localStorage.setItem('lastRSSI',String(+v));}
 window.__lastRSSI=readSavedRSSI();
 
-/* 카드 + ✅ 원래 시리얼 포맷 3줄 출력 */
+/* 카드 + 원래 포맷 3줄 */
 function updateCards(o){
   $('#aht_t').textContent=F(o.aht_t)?o.aht_t.toFixed(1)+' °C':'--.- °C';
   $('#aht_h').textContent=F(o.aht_h)?Math.round(o.aht_h)+' %':'-- %';
@@ -173,23 +196,36 @@ function updateCards(o){
   $('#scd_h').textContent=F(o.scd_h)?Math.round(o.scd_h)+' %':'-- %';
   $('#scd_c').textContent=F(o.co2)?Math.round(o.co2)+' ppm':'---- ppm';
 
-  const isOn=!!o.led; syncLedUI(isOn);
+  currentLed = !!o.led;          // ✅ 실시간 LED 상태 저장
+  syncLedUI(currentLed);
+
   const rssiV=F(+o.rssi)?(+o.rssi):window.__lastRSSI; saveRSSI(rssiV); window.__lastRSSI=rssiV;
   setBanner('MQTT 연결 OK');
 
-  const aLine=`AHT25H: ${F(o.aht_t)?o.aht_t.toFixed(1):'--.-'} °C | ${F(o.aht_h)?Math.round(o.aht_h):'--'} % | LED=${isOn?'ON':'OFF'}`;
-  const sLine=`SCD422: ${F(o.scd_t)?o.scd_t.toFixed(1):'--.-'} °C | ${F(o.scd_h)?Math.round(o.scd_h):'--'} % | ${F(o.co2)?Math.round(o.co2):'----'} ppm | LED=${isOn?'ON':'OFF'}`;
+  const aLine=`AHT25H: ${F(o.aht_t)?o.aht_t.toFixed(1):'--.-'} °C | ${F(o.aht_h)?Math.round(o.aht_h):'--'} % | LED=${currentLed?'ON':'OFF'}`;
+  const sLine=`SCD422: ${F(o.scd_t)?o.scd_t.toFixed(1):'--.-'} °C | ${F(o.scd_h)?Math.round(o.scd_h):'--'} % | ${F(o.co2)?Math.round(o.co2):'----'} ppm | LED=${currentLed?'ON':'OFF'}`;
   const rLine=`RSSI=${F(rssiV)?rssiV:'--'}`;
   $('#rawbar').textContent=`${aLine}\n${sLine}\n${rLine}`;
 }
 
-/* 테이블(10줄, 최신값 백필) */
+/* ✅ 테이블(10줄): 최신행은 실시간 LED로 강제 반영 */
 function rebuildTable(){
   const tbody=$('#logtbl');
   const base=histBuf.length?histBuf:minuteAverageFromLive(liveBuf);
-  const src=base.slice(-MAX_ROWS); const last=src.length?src[src.length-1]:null;
-  let html=''; for(let i=0;i<10;i++){let r=(i<src.length)?src[src.length-1-i]:null; if(!r&&last) r=last;
-    const d=new Date(Date.now()-i*60000),tm=String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0');
+  const src=base.slice(-MAX_ROWS);
+  const last = src.length?src[src.length-1]:null;
+
+  let html='';
+  for(let i=0;i<TABLE_ROWS;i++){
+    let r=(i<src.length)?src[src.length-1-i]:null;
+    if(!r && last) r=last;
+
+    const d=new Date(Date.now()-i*60000);
+    const tm=String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0');
+
+    // ✅ 첫 행(가장 최신)은 실시간 LED 상태로 덮어쓰기
+    const ledCell = (i===0) ? (currentLed?'ON':'OFF') : (r ? (r.led?'ON':'OFF') : '--');
+
     html+=`<tr>
       <td>${tm}</td>
       <td>${r&&F(r.aht_t)?r.aht_t.toFixed(1):'--'}</td>
@@ -197,8 +233,9 @@ function rebuildTable(){
       <td>${r&&F(r.scd_t)?r.scd_t.toFixed(1):'--'}</td>
       <td>${r&&F(r.scd_h)?Math.round(r.scd_h):'--'}</td>
       <td>${r&&F(r.co2)?Math.round(r.co2):'----'}</td>
-      <td>${r?(r.led?'ON':'OFF'):'--'}</td>
-    </tr>`;}
+      <td>${ledCell}</td>
+    </tr>`;
+  }
   tbody.innerHTML=html;
 }
 
@@ -222,10 +259,12 @@ client.on('message',(topic,buf)=>{
       if(m){currentDevId=m[1];$('#btnOn').classList.remove('disabled');$('#btnOff').classList.remove('disabled');}
     }
     const p=JSON.parse(msg);
+
     if(topic.endsWith('/status')||topic.endsWith('/last1')){
       const o=normalize(p);
       liveBuf.push(o); if(liveBuf.length>720) liveBuf.shift();
-      updateCards(o); rebuildTable(); if($('#graphSection').classList.contains('open'))renderAllCharts();
+      updateCards(o);
+      rebuildTable(); if($('#graphSection').classList.contains('open'))renderAllCharts();
     }
     if(topic.endsWith('/history60')){
       const arr=Array.isArray(p)?p:[]; histBuf=arr.map(x=>normalize(x)).slice(-60);
