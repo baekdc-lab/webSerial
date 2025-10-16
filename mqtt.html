@@ -7,8 +7,7 @@
 <style>
 :root{
   --bg:#0b1020;--card:#131a2b;--txt:#e8eefc;--mut:#9fb2d7;--line:#22314f;
-  --btn-bg:#1b2236;--btn-border:#2c3e63;
-  --on-active:#16a34a;
+  --btn-bg:#1b2236;--btn-border:#2c3e63;--on-active:#16a34a;
   --c-temp-aht:#00c2b8; --c-temp-scd:#ff8a48;
   --c-hum-aht:#4d7dff;  --c-hum-scd:#b16eff;
   --c-co2:#ffd24d;
@@ -22,39 +21,21 @@ body{margin:0;background:var(--bg);color:var(--txt);font:16px/1.5 system-ui,Sego
 .wrap{max-width:900px;margin:20px auto;padding:0 12px}
 .card{background:var(--card);border-radius:16px;padding:16px;box-shadow:0 10px 30px rgba(0,0,0,.25)}
 h1{margin:0 0 8px;font-size:26px;font-weight:800;display:flex;justify-content:space-between;align-items:center}
-/* 상단 부제(요청 크기) */
 .mut{color:var(--mut);margin:0 0 8px;font-size:16px}
-@media (max-width:480px){ .mut{font-size:15px} }
-/* 배너/상태(요청 12px) */
 .status{margin-top:8px;color:var(--mut);font-size:12px;white-space:pre-line}
 hr{border:0;border-top:1px solid var(--line);margin:10px 0}
 .theme-toggle{cursor:pointer;font-size:22px}
-/* 카드 상단 KPI */
 .grid{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:12px;margin-top:6px}
 .tile{background:#0f1526;border-radius:12px;padding:12px;text-align:center;min-height:76px}
 :root.light .tile{background:#eef1f7}
 .v{font-size:22px;font-weight:800;margin-top:4px}
-/* LED 버튼 */
 .led{display:flex;align-items:center;gap:8px;margin-top:12px;flex-wrap:wrap}
-.btn{
-  border:1px solid var(--btn-border);background:var(--btn-bg);color:#fff;
-  padding:10px 14px;border-radius:12px;cursor:pointer;font-weight:800;
-  min-width:98px;font-size:16.5px;line-height:1.05;transition:transform .05s ease, opacity .15s ease;
-}
-.btn:active{transform:translateY(1px)}
-.btn.dim{opacity:.6}
-.btn.active{opacity:1;background:var(--on-active);border-color:var(--on-active)}
-#led{min-width:60px;font-size:12.5px;color:var(--mut)}
-@media (max-width:480px){
-  .btn{min-width:84px;padding:9px 12px;font-size:15px;border-radius:11px}
-  #led{font-size:12px}
-}
-/* 섹션 토글 */
+.btn{border:1px solid var(--btn-border);background:var(--btn-bg);color:#fff;padding:10px 14px;border-radius:12px;cursor:pointer;font-weight:800;min-width:98px;font-size:16.5px;line-height:1.05;transition:transform .05s ease,opacity .15s ease;}
+.btn:active{transform:translateY(1px)} .btn.dim{opacity:.6} .btn.active{opacity:1;background:var(--on-active);border-color:var(--on-active)}
+.btn.disabled{opacity:.4;pointer-events:none;filter:grayscale(30%)} #led{min-width:60px;font-size:12.5px;color:var(--mut)}
 .btn.toggle{background:transparent;border:1px solid var(--btn-border);color:var(--txt);min-width:120px}
-/* 접기/펼치기 */
 .collapsible{max-height:0;overflow:hidden;transition:max-height .5s ease,padding .3s ease,opacity .3s ease;opacity:0}
 .collapsible.open{max-height:2000px;padding-top:6px;opacity:1}
-/* 테이블: 10행 높이 스크롤, 최신이 위 */
 .tablewrap{background:#0f1526;border-radius:14px;padding:6px}
 :root.light .tablewrap{background:#eef1f7}
 .tablebox{max-height:360px;overflow:auto;border-radius:10px}
@@ -63,9 +44,7 @@ thead th{position:sticky;top:0;z-index:2;background:#12203a}
 :root.light thead th{background:#d6deec}
 th,td{padding:6px 6px;border-bottom:1px solid var(--line);text-align:right;font-size:13px;line-height:1.4}
 th:first-child,td:first-child{text-align:center;padding-left:0;padding-right:4px}
-th:nth-child(1){width:54px} th:nth-child(2),th:nth-child(3),th:nth-child(4),th:nth-child(5){width:63px}
-th:nth-child(6){width:72px} th:nth-child(7){width:52px}
-/* 차트 */
+th:nth-child(1){width:68px}
 .charts{margin-top:10px;display:grid;grid-template-columns:1fr;gap:10px}
 .chart{background:#0f1526;border-radius:12px;padding:10px}
 :root.light .chart{background:#eef1f7}
@@ -74,9 +53,7 @@ th:nth-child(6){width:72px} th:nth-child(7){width:52px}
 .swatch{display:inline-block;width:18px;height:8px;border-radius:4px;margin-right:6px}
 .canvas-wrap{position:relative;width:100%;height:180px}
 .canvas-wrap canvas{position:absolute;left:0;top:0;width:100%;height:100%}
-/* 하단 3줄 상태 */
-#rawbar{margin-top:8px;color:var(--mut);font-size:12px;line-height:1.4;white-space:pre-line;background:transparent;border:0;border-radius:0;box-shadow:none}
-@media (max-width:480px){ #rawbar{font-size:11.5px} }
+#rawbar{margin-top:8px;color:var(--mut);font-size:12px;line-height:1.4;white-space:pre-line}
 </style>
 </head>
 <body>
@@ -85,7 +62,7 @@ th:nth-child(6){width:72px} th:nth-child(7){width:52px}
     <h1>ESP32 센서 대시보드 <span class="theme-toggle" id="themeToggle">🌙</span></h1>
     <p class="mut">AHT25(온/습) + SCD42(온/습/CO₂) · LED제어</p>
 
-    <div id="banner" class="status">—</div>
+    <div id="banner" class="status">브로커 접속 중…</div>
 
     <div class="grid">
       <div class="tile"><div>AHT25 온도</div><div id="aht_t" class="v">--.- °C</div></div>
@@ -96,19 +73,20 @@ th:nth-child(6){width:72px} th:nth-child(7){width:52px}
     </div>
 
     <div class="led">
-      <button id="btnOn"  class="btn dim">LED ON</button>
-      <button id="btnOff" class="btn dim">LED OFF</button>
+      <button id="btnOn"  class="btn dim disabled">LED ON</button>
+      <button id="btnOff" class="btn dim disabled">LED OFF</button>
       <div id="led" class="status">LED: -</div>
     </div>
 
     <hr>
 
     <div class="toggle-row">
-      <button class="btn toggle" id="toggleTable">📋 테이블 숨기기</button>
+      <button class="btn toggle" id="toggleTable">📋 테이블 보기</button>
       <button class="btn toggle" id="toggleGraph">📊 그래프 보기</button>
     </div>
 
-    <div id="tableSection" class="collapsible open">
+    <!-- 기본 접힘 -->
+    <div id="tableSection" class="collapsible">
       <div class="tablewrap">
         <div class="tablebox">
           <table>
@@ -150,293 +128,129 @@ th:nth-child(6){width:72px} th:nth-child(7){width:52px}
       </div>
     </div>
 
+    <!-- ✅ 시리얼 포맷 그대로 표시 -->
     <div id="rawbar">—</div>
   </div>
 </div>
 
 <script src="https://unpkg.com/mqtt/dist/mqtt.min.js"></script>
 <script>
-/* ===== 공용 ===== */
-const $=s=>document.querySelector(s);
-const MAX_ROWS=60;
+const MAX_ROWS=60,TABLE_ROWS=10;let currentDevId=null;const $=s=>document.querySelector(s);
 
-/* ===== 테마 ===== */
+/* 테마 */
 const themeToggle=$('#themeToggle');
-function applyTheme(t){document.documentElement.classList.toggle('light',t==='light');themeToggle.textContent=(t==='light')?'☀️':'🌙';renderAllCharts();}
+function applyTheme(t){document.documentElement.classList.toggle('light',t==='light');themeToggle.textContent=t==='light'?'☀️':'🌙';if($('#graphSection').classList.contains('open'))renderAllCharts();}
 applyTheme(localStorage.getItem('theme')||'dark');
 themeToggle.onclick=()=>{const t=document.documentElement.classList.contains('light')?'dark':'light';applyTheme(t);localStorage.setItem('theme',t);};
 
-/* ===== 섹션 토글(복구) ===== */
-function setToggle(btn, section, showText, hideText){
-  const sync=()=>{ btn.textContent = section.classList.contains('open') ? hideText : showText; };
-  btn.addEventListener('click', ()=>{
-    section.classList.toggle('open');
-    sync();
-    if(section.id==='graphSection' && section.classList.contains('open')){ renderAllCharts(); }
-  });
-  sync();
-}
-setToggle($('#toggleTable'), $('#tableSection'), '📋 테이블 보기', '📋 테이블 숨기기');
-setToggle($('#toggleGraph'), $('#graphSection'), '📊 그래프 보기', '📊 그래프 숨기기');
+/* 섹션 토글 */
+function setToggle(btn,sec,show,hide){const sync=()=>btn.textContent=sec.classList.contains('open')?hide:show;btn.onclick=()=>{sec.classList.toggle('open');sync();if(sec.id==='graphSection'&&sec.classList.contains('open'))renderAllCharts();};sync();}
+setToggle($('#toggleTable'),$('#tableSection'),'📋 테이블 보기','📋 테이블 숨기기');
+setToggle($('#toggleGraph'),$('#graphSection'),'📊 그래프 보기','📊 그래프 숨기기');
 
-/* ===== MQTT/토픽 ===== */
-const DEV_ID = localStorage.getItem('devId') || '';
-const MQTT_C = {host:'6c56aefe0ddb4d57977c735f5070abe8.s1.eu.hivemq.cloud',port:8884,username:'mqtt_ESP32',password:'gomqtt_ESP32',clientId:'webdash-'+Math.random().toString(16).slice(2)};
-const base='tswell/ahtscd/';
-const t_any_status = base+'+/status';
-const t_any_hist60 = base+'+/history60';
-const t_any_last1  = base+'+/last1';
+/* MQTT */
+const MQTT_C={host:'6c56aefe0ddb4d57977c735f5070abe8.s1.eu.hivemq.cloud',port:8884,username:'mqtt_ESP32',password:'gomqtt_ESP32'};
+const url=`wss://${MQTT_C.host}:${MQTT_C.port}/mqtt`;
+const client=mqtt.connect(url,{clientId:'webdash-'+Math.random().toString(16).slice(2),username:MQTT_C.username,password:MQTT_C.password,clean:true,keepalive:30,reconnectPeriod:2000,connectTimeout:8000,protocolVersion:4,resubscribe:true});
+const t_status='things/+/status',t_hist60='things/+/history60',t_last1='things/+/last1';
+const banner=$('#banner');function setBanner(m){banner.textContent=m;}
 
-/* ===== 유틸/검증 ===== */
-let histBuf=[];       // [{..., ts}]
-let lastGood=null;    // 최근 정상값
-const F=Number.isFinite;
-const inTemp=v=>F(v)&&v>-30&&v<85;
-const inHum =v=>F(v)&&v>=1&&v<=100;
-const inCO2 =v=>F(v)&&v>0&&v<=100000;
-function isGood(o){return inTemp(+o.aht_t)&&inHum(+o.aht_h)&&inTemp(+o.scd_t)&&inHum(+o.scd_h)&&inCO2(+o.co2);}
-function minuteStart(ms){return Math.floor(ms/60000)*60000;}
-function nowMinute(){return minuteStart(Date.now());}
-function normalize(o){
-  return {
-    aht_t:+o.aht_t, aht_h:+o.aht_h,
-    scd_t:+o.scd_t, scd_h:+o.scd_h,
-    co2:+o.co2, led:(o.led==='on'||o.led===1||o.led===true),
-    rssi:+o.rssi, ts:o.ts?+o.ts:undefined
-  };
-}
+/* 버퍼 */
+let histBuf=[],liveBuf=[];const F=Number.isFinite;
 
-/* ===== RSSI 지속(리플래시 복구) ===== */
-function readSavedRSSI(){
-  const v = localStorage.getItem('lastRSSI');
-  const n = v===null ? NaN : +v;
-  return Number.isFinite(n) ? n : '--';
-}
-function saveRSSI(v){
-  if(Number.isFinite(+v)) localStorage.setItem('lastRSSI', String(+v));
-}
-window.__lastRSSI = readSavedRSSI();
+/* 유틸 */
+function normalize(o){return{aht_t:o.aht_t==null?NaN:+o.aht_t,aht_h:o.aht_h==null?NaN:+o.aht_h,scd_t:o.scd_t==null?NaN:+o.scd_t,scd_h:o.scd_h==null?NaN:+o.scd_h,co2:o.co2==null?NaN:+o.co2,led:o.led==='on'||o.led===1||o.led===true,rssi:o.rssi==null?NaN:+o.rssi,ts:o.ts?+o.ts:Date.now(),age:F(+o.age)?+o.age:NaN};}
+function minuteAverageFromLive(smp){const by=new Map();for(const s of smp){const k=Math.floor(s.ts/60000);if(!by.has(k))by.set(k,{n:0,aht_t:0,aht_h:0,scd_t:0,scd_h:0,co2:0,led:false});const b=by.get(k);function acc(n){if(F(s[n])){b[n]+=s[n];b.n++;}}acc('aht_t');acc('aht_h');acc('scd_t');acc('scd_h');acc('co2');b.led=!!s.led;}const out=[],keys=[...by.keys()].sort((a,b)=>a-b).slice(-60);for(const k of keys){const b=by.get(k),n=Math.max(1,b.n);out.push({aht_t:b.n?b.aht_t/n:NaN,aht_h:b.n?b.aht_h/n:NaN,scd_t:b.n?b.scd_t/n:NaN,scd_h:b.n?b.scd_h/n:NaN,co2:b.n?b.co2/n:NaN,led:b.led});}return out;}
+function readSavedRSSI(){const v=localStorage.getItem('lastRSSI');const n=v===null?NaN:+v;return Number.isFinite(n)?n:'--';}
+function saveRSSI(v){if(Number.isFinite(+v))localStorage.setItem('lastRSSI',String(+v));}
+window.__lastRSSI=readSavedRSSI();
 
-/* ===== 로컬 캐시 ===== */
-function saveCache(){ localStorage.setItem('histBuf', JSON.stringify(histBuf.slice(-MAX_ROWS))); }
-function loadCache(){
-  const raw=localStorage.getItem('histBuf'); if(!raw) return false;
-  try{
-    const arr=JSON.parse(raw);
-    if(Array.isArray(arr)&&arr.length){
-      const baseTs = nowMinute() - (arr.length-1)*60000;
-      histBuf = arr.map((r,i)=>({...normalize(r), ts: r.ts?+r.ts:(baseTs+i*60000)})).slice(-MAX_ROWS);
-      lastGood = histBuf[histBuf.length-1] || null;
-      return true;
-    }
-  }catch(e){}
-  return false;
+/* 카드 + ✅ 원래 시리얼 포맷 3줄 출력 */
+function updateCards(o){
+  $('#aht_t').textContent=F(o.aht_t)?o.aht_t.toFixed(1)+' °C':'--.- °C';
+  $('#aht_h').textContent=F(o.aht_h)?Math.round(o.aht_h)+' %':'-- %';
+  $('#scd_t').textContent=F(o.scd_t)?o.scd_t.toFixed(1)+' °C':'--.- °C';
+  $('#scd_h').textContent=F(o.scd_h)?Math.round(o.scd_h)+' %':'-- %';
+  $('#scd_c').textContent=F(o.co2)?Math.round(o.co2)+' ppm':'---- ppm';
+
+  const isOn=!!o.led; syncLedUI(isOn);
+  const rssiV=F(+o.rssi)?(+o.rssi):window.__lastRSSI; saveRSSI(rssiV); window.__lastRSSI=rssiV;
+  setBanner('MQTT 연결 OK');
+
+  const aLine=`AHT25H: ${F(o.aht_t)?o.aht_t.toFixed(1):'--.-'} °C | ${F(o.aht_h)?Math.round(o.aht_h):'--'} % | LED=${isOn?'ON':'OFF'}`;
+  const sLine=`SCD422: ${F(o.scd_t)?o.scd_t.toFixed(1):'--.-'} °C | ${F(o.scd_h)?Math.round(o.scd_h):'--'} % | ${F(o.co2)?Math.round(o.co2):'----'} ppm | LED=${isOn?'ON':'OFF'}`;
+  const rLine=`RSSI=${F(rssiV)?rssiV:'--'}`;
+  $('#rawbar').textContent=`${aLine}\n${sLine}\n${rLine}`;
 }
 
-/* ===== 현재 분 샘플 누적 → 평균 산출 ===== */
-let curAgg = { tsMin:null, sum:{aht_t:0,aht_h:0,scd_t:0,scd_h:0,co2:0 }, count:0, led:false, rssi:NaN };
-function addSample(o){
-  const m = nowMinute();
-  if (curAgg.tsMin===null) curAgg.tsMin=m;
-  if (m!==curAgg.tsMin){ finalizeMinuteAverage(); curAgg.tsMin=m; }
-  if (isGood(o)){
-    curAgg.sum.aht_t += o.aht_t; curAgg.sum.aht_h += o.aht_h;
-    curAgg.sum.scd_t += o.scd_t; curAgg.sum.scd_h += o.scd_h;
-    curAgg.sum.co2   += o.co2;   curAgg.count++;
-    curAgg.led = o.led;          curAgg.rssi = Number.isFinite(+o.rssi)? +o.rssi : curAgg.rssi;
-  }
-}
-function finalizeMinuteAverage(){
-  if (curAgg.count>0){
-    const avg = {
-      aht_t: curAgg.sum.aht_t/curAgg.count,
-      aht_h: curAgg.sum.aht_h/curAgg.count,
-      scd_t: curAgg.sum.scd_t/curAgg.count,
-      scd_h: curAgg.sum.scd_h/curAgg.count,
-      co2  : curAgg.sum.co2  /curAgg.count,
-      led  : curAgg.led,
-      rssi : curAgg.rssi,
-      ts   : curAgg.tsMin
-    };
-    histBuf.push(avg); if (histBuf.length>MAX_ROWS) histBuf=histBuf.slice(-MAX_ROWS);
-    saveCache(); rebuildTable(); renderAllCharts();
-  }
-  curAgg = { tsMin:null, sum:{aht_t:0,aht_h:0,scd_t:0,scd_h:0,co2:0 }, count:0, led:false, rssi:NaN };
-}
-
-/* ===== UI 갱신 ===== */
-function updateUIWith(o){
-  const merged = {...(lastGood||{}), ...o};
-  if(!isGood(merged)) return;
-  lastGood = merged;
-
-  $('#aht_t').textContent = `${merged.aht_t.toFixed(1)} °C`;
-  $('#aht_h').textContent = `${Math.round(merged.aht_h)} %`;
-  $('#scd_t').textContent = `${merged.scd_t.toFixed(1)} °C`;
-  $('#scd_h').textContent = `${Math.round(merged.scd_h)} %`;
-  $('#scd_c').textContent = `${Math.round(merged.co2)} ppm`;
-
-  syncLedUI(!!merged.led);
-
-  const rssiV = Number.isFinite(+merged.rssi)?(+merged.rssi):window.__lastRSSI;
-  saveRSSI(rssiV);
-  window.__lastRSSI = rssiV;
-  $('#rawbar').textContent =
-    `AHT25 : ${merged.aht_t.toFixed(1)} °C | ${Math.round(merged.aht_h)} % | LED=${merged.led?'ON':'OFF'}\n`+
-    `SCD42 : ${merged.scd_t.toFixed(1)} °C | ${Math.round(merged.scd_h)} % | ${Math.round(merged.co2)} ppm | LED=${merged.led?'ON':'OFF'}\n`+
-    `RSSI: ${rssiV} [dBm]`;
-}
-
-/* ===== 테이블(최신이 위, 최대 60행) ===== */
+/* 테이블(10줄, 최신값 백필) */
 function rebuildTable(){
   const tbody=$('#logtbl');
-  const len=Math.min(histBuf.length,MAX_ROWS);
-  let html='';
-  for(let k=0;k<len;k++){
-    const i=histBuf.length-1-k, r=histBuf[i], d=new Date(r.ts||Date.now());
-    const hh=String(d.getHours()).padStart(2,'0'), mm=String(d.getMinutes()).padStart(2,'0');
-    html += `<tr>
-      <td>${hh}:${mm}</td>
-      <td>${r.aht_t.toFixed(1)}</td>
-      <td>${Math.round(r.aht_h)}</td>
-      <td>${r.scd_t.toFixed(1)}</td>
-      <td>${Math.round(r.scd_h)}</td>
-      <td>${Math.round(r.co2)}</td>
-      <td>${r.led?'ON':'OFF'}</td>
-    </tr>`;
-  }
+  const base=histBuf.length?histBuf:minuteAverageFromLive(liveBuf);
+  const src=base.slice(-MAX_ROWS); const last=src.length?src[src.length-1]:null;
+  let html=''; for(let i=0;i<10;i++){let r=(i<src.length)?src[src.length-1-i]:null; if(!r&&last) r=last;
+    const d=new Date(Date.now()-i*60000),tm=String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0');
+    html+=`<tr>
+      <td>${tm}</td>
+      <td>${r&&F(r.aht_t)?r.aht_t.toFixed(1):'--'}</td>
+      <td>${r&&F(r.aht_h)?Math.round(r.aht_h):'--'}</td>
+      <td>${r&&F(r.scd_t)?r.scd_t.toFixed(1):'--'}</td>
+      <td>${r&&F(r.scd_h)?Math.round(r.scd_h):'--'}</td>
+      <td>${r&&F(r.co2)?Math.round(r.co2):'----'}</td>
+      <td>${r?(r.led?'ON':'OFF'):'--'}</td>
+    </tr>`;}
   tbody.innerHTML=html;
 }
 
-/* ===== 차트 ===== */
+/* 차트 */
 const dpr=()=>window.devicePixelRatio||1;
 function prepCanvas(c){const r=c.getBoundingClientRect();const w=Math.max(1,r.width),h=Math.max(1,r.height);c.width=Math.floor(w*dpr());c.height=Math.floor(h*dpr());const ctx=c.getContext('2d');ctx.setTransform(dpr(),0,0,dpr(),0,0);return ctx;}
-function drawChart(c,series){
-  const ctx=prepCanvas(c);
-  const W=c.getBoundingClientRect().width,H=c.getBoundingClientRect().height;
-  const padL=34,padR=10,padT=10,padB=22,plotW=W-padL-padR,plotH=H-padT-padB;
-  const light=document.documentElement.classList.contains('light');
-  ctx.clearRect(0,0,W,H);
-  ctx.fillStyle=light?'#eef1f7':'#0f1526';
-  ctx.fillRect(0,0,W,H);
-  ctx.strokeStyle=light?'#ccd4e0':'#22314f';
-  ctx.beginPath();
-  for(let g=0; g<=4; g++){const y=padT+plotH*g/4;ctx.moveTo(padL,y);ctx.lineTo(padL+plotW,y);}
-  for(let m=0; m<=60; m+=10){const x=padL+plotW*(m/60);ctx.moveTo(x,padT);ctx.lineTo(x,padT+plotH);}
-  ctx.stroke();
-  ctx.fillStyle=light?'#5a6b8a':'#9fb2d7';
-  ctx.font='12px system-ui,Segoe UI,Roboto,Apple SD Gothic Neo,sans-serif';
-  ctx.textAlign='center';ctx.textBaseline='top';
-  for(let m=0; m<=60; m+=10){const x=padL+plotW*(m/60);ctx.fillText((60-m)==0?'지금':`-${60-m}m`,x,padT+plotH+4);}
-  const vals=[];for(const s of series){for(const v of s.data){if(Number.isFinite(v))vals.push(v);}}
-  let vmin=Math.min(...(vals.length?vals:[0])),vmax=Math.max(...(vals.length?vals:[1]));if(vmax===vmin){vmax=vmin+1;}
-  const pad=(vmax-vmin)*0.1;vmin-=pad;vmax+=pad;
-  ctx.textAlign='right';ctx.textBaseline='middle';
-  for(let g=0; g<=4; g++){const y=padT+plotH*g/4;const val=vmax-(vmax-vmin)*g/4;ctx.fillText(val.toFixed((vmax-vmin)<10?1:0),padL-6,y);}
-  function xAt(i){return padL+plotW*(i/59);} function yAt(v){return padT+((vmax-v)/(vmax-vmin))*plotH;}
-  for(const s of series){
-    ctx.beginPath();ctx.lineWidth=2;ctx.strokeStyle=s.color;let moved=false;const N=s.data.length;
-    for(let i=0;i<60;i++){const idx=i-(60-N);const v=(idx>=0&&idx<N)?s.data[idx]:NaN;const x=xAt(i);
-      if(Number.isFinite(v)){const y=yAt(v);if(!moved){ctx.moveTo(x,y);moved=true;}else ctx.lineTo(x,y);} else moved=false;}
-    ctx.stroke();
-  }
-}
-function renderAllCharts(){
-  if(!$('#graphSection').classList.contains('open'))return;
-  const get=prop=>getComputedStyle(document.documentElement).getPropertyValue(prop).trim();
-  const aht_t=histBuf.map(r=>r.aht_t),scd_t=histBuf.map(r=>r.scd_t);
-  const aht_h=histBuf.map(r=>r.aht_h),scd_h=histBuf.map(r=>r.scd_h);
-  const co2=histBuf.map(r=>r.co2);
-  drawChart($('#chTemp'),[{data:aht_t,color:get('--c-temp-aht')},{data:scd_t,color:get('--c-temp-scd')}]);
-  drawChart($('#chHum'), [{data:aht_h,color:get('--c-hum-aht')},{data:scd_h,color:get('--c-hum-scd')}]);
-  drawChart($('#chCO2'), [{data:co2,color:get('--c-co2')}]);
-}
+function drawChart(c,series){const ctx=prepCanvas(c);const W=c.getBoundingClientRect().width,H=c.getBoundingClientRect().height;const padL=34,padR=10,padT=10,padB=22,plotW=W-padL-padR,plotH=H-padT-padB;const light=document.documentElement.classList.contains('light');ctx.clearRect(0,0,W,H);ctx.fillStyle=light?'#eef1f7':'#0f1526';ctx.fillRect(0,0,W,H);ctx.strokeStyle=light?'#ccd4e0':'#22314f';ctx.beginPath();for(let g=0;g<=4;g++){const y=padT+plotH*g/4;ctx.moveTo(padL,y);ctx.lineTo(padL+plotW,y);}for(let m=0;m<=60;m+=10){const x=padL+plotW*(m/60);ctx.moveTo(x,padT);ctx.lineTo(x,padT+plotH);}ctx.stroke();ctx.fillStyle=light?'#5a6b8a':'#9fb2d7';ctx.font='12px system-ui,Segoe UI,Roboto,Apple SD Gothic Neo,sans-serif';ctx.textAlign='center';ctx.textBaseline='top';for(let m=0;m<=60;m+=10){const x=padL+plotW*(m/60);ctx.fillText((60-m)==0?'지금':`-${60-m}m`,x,padT+plotH+4);}const vals=[];for(const s of series){for(const v of s.data){if(Number.isFinite(v))vals.push(v);}}let vmin=Math.min(...(vals.length?vals:[0])),vmax=Math.max(...(vals.length?vals:[1]));if(vmax===vmin){vmax=vmin+1;}const pad=(vmax-vmin)*0.1;vmin-=pad;vmax+=pad;ctx.textAlign='right';ctx.textBaseline='middle';for(let g=0;g<=4;g++){const y=padT+plotH*g/4;const val=vmax-(vmax-vmin)*g/4;ctx.fillText(val.toFixed((vmax-vmin)<10?1:0),padL-6,y);}function xAt(i){return padL+plotW*(i/59);}function yAt(v){return padT+((vmax-v)/(vmax-vmin))*plotH;}for(const s of series){ctx.beginPath();ctx.lineWidth=2;ctx.strokeStyle=s.color;let moved=false;const N=s.data.length;for(let i=0;i<60;i++){const idx=i-(60-N);const v=(idx>=0&&idx<N)?s.data[idx]:NaN;const x=xAt(i);if(Number.isFinite(v)){const y=yAt(v);if(!moved){ctx.moveTo(x,y);moved=true;}else ctx.lineTo(x,y);}else moved=false;}ctx.stroke();}}
+function renderAllCharts(){if(!$('#graphSection').classList.contains('open'))return;const get=p=>getComputedStyle(document.documentElement).getPropertyValue(p).trim();const src=histBuf.length?histBuf:minuteAverageFromLive(liveBuf);const aht_t=src.map(r=>r.aht_t),scd_t=src.map(r=>r.scd_t);const aht_h=src.map(r=>r.aht_h),scd_h=src.map(r=>r.scd_h);const co2=src.map(r=>r.co2);drawChart($('#chTemp'),[{data:aht_t,color:get('--c-temp-aht')},{data:scd_t,color:get('--c-temp-scd')}]);drawChart($('#chHum'),[{data:aht_h,color:get('--c-hum-aht')},{data:scd_h,color:get('--c-hum-scd')}]);drawChart($('#chCO2'),[{data:co2,color:get('--c-co2')}]);}
 
-/* ===== 시작: 캐시/마지막 RSSI로 즉시 표시 ===== */
-if(loadCache()){
-  const last=histBuf[histBuf.length-1];
-  if(last){
-    if(!Number.isFinite(+last.rssi)) last.rssi = readSavedRSSI();
-    updateUIWith(last); rebuildTable(); renderAllCharts();
-  }else{
-    const rssiV = readSavedRSSI();
-    $('#rawbar').textContent = `AHT25 : --.- °C | -- % | LED=--\nSCD42 : --.- °C | -- % | ---- ppm | LED=--\nRSSI: ${rssiV} [dBm]`;
-  }
-}else{
-  const rssiV = readSavedRSSI();
-  $('#rawbar').textContent = `AHT25 : --.- °C | -- % | LED=--\nSCD42 : --.- °C | -- % | ---- ppm | LED=--\nRSSI: ${rssiV} [dBm]`;
-}
+/* MQTT 이벤트 */
+client.on('connect',()=>{setBanner('MQTT 연결 OK (구독중)');client.subscribe([t_status,t_hist60,t_last1],{qos:1});});
+client.on('reconnect',()=>setBanner('MQTT 재접속 중…'));
+client.on('error',e=>setBanner('MQTT 오류: '+(e?.message||e)));
+client.on('offline',()=>setBanner('오프라인'));
 
-/* ===== MQTT 연결 ===== */
-let client;
-(function connectMQTT(){
-  const url=`wss://${MQTT_C.host}:${MQTT_C.port}/mqtt`;
-  client=mqtt.connect(url,{clientId:MQTT_C.clientId,username:'mqtt_ESP32',password:'gomqtt_ESP32',clean:true,reconnectPeriod:2000,connectTimeout:8000});
-  client.on('connect',()=>{
-    $('#banner').textContent='MQTT 연결 OK';
-    client.subscribe([t_any_status,t_any_hist60,t_any_last1]);
-    curAgg.tsMin = nowMinute();
-  });
-  client.on('reconnect',()=>{$('#banner').textContent='MQTT 재접속 중...';});
-  client.on('error',e=>{$('#banner').textContent='MQTT 오류: '+e.message;});
-  client.on('message',(topic,buf)=>{
-    const msg=new TextDecoder().decode(buf);
-    try{
-      const parsed = JSON.parse(msg);
-      if(topic.endsWith('/status')){
-        const no=normalize(parsed);
-        updateUIWith(no); addSample(no);
-      }
-      if(topic.endsWith('/last1')){
-        const no=normalize(parsed);
-        updateUIWith(no); finalizeMinuteAverage();
-      }
-      if(topic.endsWith('/history60')){
-        const arr=Array.isArray(parsed)?parsed:[];
-        if(arr.length){
-          const baseTs=nowMinute()-(arr.length-1)*60000;
-          const mapped=arr.map((x,i)=>({...normalize(x), ts:baseTs+i*60000})).filter(isGood);
-          if(mapped.length){
-            if(histBuf.length===0 || mapped.length>histBuf.length){
-              histBuf = mapped.slice(-MAX_ROWS);
-            }else{
-              const map = new Map(histBuf.map(r=>[r.ts, r]));
-              for(const r of mapped) map.set(r.ts, r);
-              histBuf = Array.from(map.values()).sort((a,b)=>a.ts-b.ts).slice(-MAX_ROWS);
-            }
-            saveCache();
-            const last=histBuf[histBuf.length-1];
-            if(last){ updateUIWith(last); }
-            rebuildTable(); renderAllCharts();
-            curAgg = { tsMin: nowMinute(), sum:{aht_t:0,aht_h:0,scd_t:0,scd_h:0,co2:0 }, count:0, led:last?.led||false, rssi:last?.rssi };
-          }
-        }
-      }
-    }catch(e){}
-  });
-})();
+client.on('message',(topic,buf)=>{
+  const msg=new TextDecoder().decode(buf);
+  try{
+    if(!currentDevId){
+      const m=topic.match(/^things\/([^/]+)\/(status|last1|history60)$/);
+      if(m){currentDevId=m[1];$('#btnOn').classList.remove('disabled');$('#btnOff').classList.remove('disabled');}
+    }
+    const p=JSON.parse(msg);
+    if(topic.endsWith('/status')||topic.endsWith('/last1')){
+      const o=normalize(p);
+      liveBuf.push(o); if(liveBuf.length>720) liveBuf.shift();
+      updateCards(o); rebuildTable(); if($('#graphSection').classList.contains('open'))renderAllCharts();
+    }
+    if(topic.endsWith('/history60')){
+      const arr=Array.isArray(p)?p:[]; histBuf=arr.map(x=>normalize(x)).slice(-60);
+      rebuildTable(); if($('#graphSection').classList.contains('open'))renderAllCharts();
+    }
+  }catch(e){}
+});
 
-/* ===== LED 제어 ===== */
-function sendLed(on){
-  if(!client || !client.connected) return;
-  const dev = (DEV_ID && DEV_ID!=='') ? DEV_ID : '*';
-  const payload = JSON.stringify({ led: on ? 'on' : 'off' });
-  [ base + dev + '/cmd/led', base + dev + '/led' ].forEach(t=>{
-    try{ client.publish(t, payload, { qos:1, retain:false }); }catch(e){}
-  });
-  const cur = lastGood ? {...lastGood} : {};
-  cur.led = !!on;
-  updateUIWith(cur);
+/* LED 제어 */
+function publishLed(on){
+  if(!client||!client.connected||!currentDevId){setBanner('LED 명령 실패: 장치 미감지');return;}
+  const topic1=`things/${currentDevId}/cmd/led`,topic2=`${currentDevId}/cmd/led`;
+  const txt=on?'on':'off',json=JSON.stringify({led:txt});
+  client.publish(topic1,txt,{qos:1,retain:false});
+  client.publish(topic1,json,{qos:1,retain:false});
+  client.publish(topic2,txt,{qos:1,retain:false});
+  client.publish(topic2,json,{qos:1,retain:false});
 }
-function syncLedUI(isOn){
-  const on=$('#btnOn'), off=$('#btnOff');
-  on.classList.remove('active','dim'); off.classList.remove('active','dim');
-  if(isOn){ on.classList.add('active'); off.classList.add('dim'); }
-  else    { off.classList.add('active'); on.classList.add('dim'); }
-  $('#led').textContent = 'LED: ' + (isOn?'ON':'OFF');
-}
-$('#btnOn').onclick  = () => sendLed(true);
-$('#btnOff').onclick = () => sendLed(false);
+function sendLed(on){publishLed(on);const t={...(liveBuf[liveBuf.length-1]||{}),led:!!on};updateCards(t);}
+function syncLedUI(isOn){const on=$('#btnOn'),off=$('#btnOff');on.classList.remove('active','dim');off.classList.remove('active','dim');if(isOn){on.classList.add('active');off.classList.add('dim');}else{off.classList.add('active');on.classList.add('dim');}$('#led').textContent='LED: '+(isOn?'ON':'OFF');}
+$('#btnOn').onclick=()=>sendLed(true);
+$('#btnOff').onclick=()=>sendLed(false);
+
+/* 초기 테이블 */
+rebuildTable();
 </script>
 </body>
 </html>
