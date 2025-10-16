@@ -73,8 +73,8 @@ th:nth-child(1){width:68px}
     </div>
 
     <div class="led">
-      <button id="btnOn"  class="btn dim disabled">LED ON</button>
-      <button id="btnOff" class="btn dim disabled">LED OFF</button>
+      <button id="btnOn"  class="btn dim">LED ON</button>
+      <button id="btnOff" class="btn dim">LED OFF</button>
       <div id="led" class="status">LED: -</div>
     </div>
 
@@ -135,60 +135,95 @@ th:nth-child(1){width:68px}
 <script>
 /* ===== 기본 ===== */
 const MAX_ROWS=60, TABLE_ROWS=10;
-let currentDevId=null, currentLed=false;   // <- 실시간 LED 상태 저장
+let currentDevId=null, currentLed=false;
 const $=s=>document.querySelector(s);
 
-/* 테마 */
+/* ===== 테마 ===== */
 const themeToggle=$('#themeToggle');
 function applyTheme(t){document.documentElement.classList.toggle('light',t==='light');themeToggle.textContent=t==='light'?'☀️':'🌙';if($('#graphSection').classList.contains('open'))renderAllCharts();}
 applyTheme(localStorage.getItem('theme')||'dark');
 themeToggle.onclick=()=>{const t=document.documentElement.classList.contains('light')?'dark':'light';applyTheme(t);localStorage.setItem('theme',t);};
 
-/* 섹션 토글 */
+/* ===== 접힘 토글 ===== */
 function setToggle(btn,sec,show,hide){const sync=()=>btn.textContent=sec.classList.contains('open')?hide:show;btn.onclick=()=>{sec.classList.toggle('open');sync();if(sec.id==='graphSection'&&sec.classList.contains('open'))renderAllCharts();};sync();}
 setToggle($('#toggleTable'),$('#tableSection'),'📋 테이블 보기','📋 테이블 숨기기');
 setToggle($('#toggleGraph'),$('#graphSection'),'📊 그래프 보기','📊 그래프 숨기기');
 
-/* MQTT */
+/* ===== MQTT ===== */
 const MQTT_C={host:'6c56aefe0ddb4d57977c735f5070abe8.s1.eu.hivemq.cloud',port:8884,username:'mqtt_ESP32',password:'gomqtt_ESP32'};
 const url=`wss://${MQTT_C.host}:${MQTT_C.port}/mqtt`;
 const client=mqtt.connect(url,{clientId:'webdash-'+Math.random().toString(16).slice(2),username:MQTT_C.username,password:MQTT_C.password,clean:true,keepalive:30,reconnectPeriod:2000,connectTimeout:8000,protocolVersion:4,resubscribe:true});
 const t_status='things/+/status',t_hist60='things/+/history60',t_last1='things/+/last1';
-const banner=$('#banner');function setBanner(m){banner.textContent=m;}
+const banner=$('#banner');const setBanner=m=>banner.textContent=m;
 
-/* 버퍼 */
+/* ===== 버퍼/유틸 ===== */
 let histBuf=[], liveBuf=[]; const F=Number.isFinite;
 
-/* 유틸 */
-function normalize(o){return{aht_t:o.aht_t==null?NaN:+o.aht_t,aht_h:o.aht_h==null?NaN:+o.aht_h,scd_t:o.scd_t==null?NaN:+o.scd_t,scd_h:o.scd_h==null?NaN:+o.scd_h,co2:o.co2==null?NaN:+o.co2,led:o.led==='on'||o.led===1||o.led===true,rssi:o.rssi==null?NaN:+o.rssi,ts:o.ts?+o.ts:Date.now(),age:F(+o.age)?+o.age:NaN};}
-
-/* 5초 샘플 → 1분 평균 (LED = 분중 한 번이라도 ON이면 ON) */
-function minuteAverageFromLive(samples){
-  const by=new Map();
-  for(const s of samples){
-    const k=Math.floor(s.ts/60000);
-    if(!by.has(k)) by.set(k,{n:0,aht_t:0,aht_h:0,scd_t:0,scd_h:0,co2:0,led:false});
-    const b=by.get(k);
-    function acc(n){ if(F(s[n])){ b[n]+=s[n]; b.n++; } }
-    acc('aht_t'); acc('aht_h'); acc('scd_t'); acc('scd_h'); acc('co2');
-    b.led = b.led || !!s.led;            // ✅ 여기!
+/* 타임스탬프 보정: 펌웨어 ts가 millis()일 때 epoch로 환산 */
+function normalize(o){
+  const now = Date.now();
+  const ageSec = Number.isFinite(+o.age) ? (+o.age) : NaN;
+  let tsRaw = (o.ts==null)?NaN:+o.ts;
+  let ts;
+  if(!Number.isFinite(tsRaw) || tsRaw < 1e12){
+    ts = Number.isFinite(ageSec) ? (now - ageSec*1000) : now;
+  }else{
+    ts = tsRaw;
   }
-  const out=[], keys=[...by.keys()].sort((a,b)=>a-b).slice(-60);
-  for(const k of keys){
-    const b=by.get(k), n=Math.max(1,b.n);
-    out.push({ aht_t:b.n?b.aht_t/n:NaN, aht_h:b.n?b.aht_h/n:NaN,
-               scd_t:b.n?b.scd_t/n:NaN, scd_h:b.n?b.scd_h/n:NaN,
-               co2:b.n?b.co2/n:NaN, led:b.led });
-  }
-  return out;
+  return{
+    aht_t:o.aht_t==null?NaN:+o.aht_t,
+    aht_h:o.aht_h==null?NaN:+o.aht_h,
+    scd_t:o.scd_t==null?NaN:+o.scd_t,
+    scd_h:o.scd_h==null?NaN:+o.scd_h,
+    co2  :o.co2  ==null?NaN:+o.co2,
+    led  :o.led==='on'||o.led===1||o.led===true,
+    rssi :o.rssi==null?NaN:+o.rssi,
+    ts, age: ageSec
+  };
 }
 
-/* RSSI 저장 */
+/* ===== 현재 분 집계(샘플 수 기반): ON 샘플 ≥ 6 → ON ===== */
+function aggregateCurrentMinute(samples) {
+  if (!samples.length) return null;
+  const now = Date.now();
+  const startOfMinute = Math.floor(now / 60000) * 60000;
+  const endOfMinute   = startOfMinute + 60000;
+
+  const segs = samples.filter(s=>s.ts>=startOfMinute && s.ts<endOfMinute).sort((a,b)=>a.ts-b.ts);
+  if (!segs.length) return null;
+
+  // LED 샘플 카운트
+  let onCount = 0;
+  for(const s of segs) if (s.led) onCount++;
+  const ledOn = onCount >= 6;
+
+  // 센서 표시용 평균(샘플 평균)
+  let aht_t=0,aht_h=0,scd_t=0,scd_h=0,co2=0,n=0;
+  for(const s of segs){
+    if(F(s.aht_t)) aht_t+=s.aht_t;
+    if(F(s.aht_h)) aht_h+=s.aht_h;
+    if(F(s.scd_t)) scd_t+=s.scd_t;
+    if(F(s.scd_h)) scd_h+=s.scd_h;
+    if(F(s.co2))   co2  +=s.co2;
+    n++;
+  }
+  n=Math.max(1,n);
+  return { ts:startOfMinute, aht_t:aht_t/n, aht_h:aht_h/n, scd_t:scd_t/n, scd_h:scd_h/n, co2:co2/n, led:ledOn };
+}
+
+/* ===== 표시용 60분 시퀀스: 히스토리 59 + 현재분 1 ===== */
+function buildDisplayMinutes(){
+  const hist = (histBuf||[]).slice(-59);
+  const cur  = aggregateCurrentMinute(liveBuf||[]);
+  if (cur) return [...hist, cur];
+  return hist;
+}
+
+/* ===== 카드 + 하단 3줄 ===== */
 function readSavedRSSI(){const v=localStorage.getItem('lastRSSI');const n=v===null?NaN:+v;return Number.isFinite(n)?n:'--';}
 function saveRSSI(v){if(Number.isFinite(+v))localStorage.setItem('lastRSSI',String(+v));}
 window.__lastRSSI=readSavedRSSI();
 
-/* 카드 + 원래 포맷 3줄 */
 function updateCards(o){
   $('#aht_t').textContent=F(o.aht_t)?o.aht_t.toFixed(1)+' °C':'--.- °C';
   $('#aht_h').textContent=F(o.aht_h)?Math.round(o.aht_h)+' %':'-- %';
@@ -196,35 +231,29 @@ function updateCards(o){
   $('#scd_h').textContent=F(o.scd_h)?Math.round(o.scd_h)+' %':'-- %';
   $('#scd_c').textContent=F(o.co2)?Math.round(o.co2)+' ppm':'---- ppm';
 
-  currentLed = !!o.led;          // ✅ 실시간 LED 상태 저장
-  syncLedUI(currentLed);
-
+  currentLed=!!o.led; syncLedUI(currentLed);
   const rssiV=F(+o.rssi)?(+o.rssi):window.__lastRSSI; saveRSSI(rssiV); window.__lastRSSI=rssiV;
   setBanner('MQTT 연결 OK');
 
   const aLine=`AHT25H: ${F(o.aht_t)?o.aht_t.toFixed(1):'--.-'} °C | ${F(o.aht_h)?Math.round(o.aht_h):'--'} % | LED=${currentLed?'ON':'OFF'}`;
   const sLine=`SCD422: ${F(o.scd_t)?o.scd_t.toFixed(1):'--.-'} °C | ${F(o.scd_h)?Math.round(o.scd_h):'--'} % | ${F(o.co2)?Math.round(o.co2):'----'} ppm | LED=${currentLed?'ON':'OFF'}`;
-  const rLine=`RSSI=${F(rssiV)?rssiV:'--'}`;
+  const rLine=`RSSI=${Number.isFinite(rssiV)?rssiV:'--'}`;
   $('#rawbar').textContent=`${aLine}\n${sLine}\n${rLine}`;
 }
 
-/* ✅ 테이블(10줄): 최신행은 실시간 LED로 강제 반영 */
+/* ===== 테이블(10줄): 최신행 = 현재분(샘플≥6 규칙) ===== */
 function rebuildTable(){
   const tbody=$('#logtbl');
-  const base=histBuf.length?histBuf:minuteAverageFromLive(liveBuf);
-  const src=base.slice(-MAX_ROWS);
-  const last = src.length?src[src.length-1]:null;
+  const series=buildDisplayMinutes();          // 최신이 맨 끝
+  const last=series.length?series[series.length-1]:null;
 
   let html='';
   for(let i=0;i<TABLE_ROWS;i++){
-    let r=(i<src.length)?src[src.length-1-i]:null;
+    let r=(i<series.length)?series[series.length-1-i]:null;
     if(!r && last) r=last;
 
     const d=new Date(Date.now()-i*60000);
     const tm=String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0');
-
-    // ✅ 첫 행(가장 최신)은 실시간 LED 상태로 덮어쓰기
-    const ledCell = (i===0) ? (currentLed?'ON':'OFF') : (r ? (r.led?'ON':'OFF') : '--');
 
     html+=`<tr>
       <td>${tm}</td>
@@ -233,19 +262,29 @@ function rebuildTable(){
       <td>${r&&F(r.scd_t)?r.scd_t.toFixed(1):'--'}</td>
       <td>${r&&F(r.scd_h)?Math.round(r.scd_h):'--'}</td>
       <td>${r&&F(r.co2)?Math.round(r.co2):'----'}</td>
-      <td>${ledCell}</td>
+      <td>${r?(r.led?'ON':'OFF'):'--'}</td>
     </tr>`;
   }
   tbody.innerHTML=html;
 }
 
-/* 차트 */
+/* ===== 차트 ===== */
 const dpr=()=>window.devicePixelRatio||1;
 function prepCanvas(c){const r=c.getBoundingClientRect();const w=Math.max(1,r.width),h=Math.max(1,r.height);c.width=Math.floor(w*dpr());c.height=Math.floor(h*dpr());const ctx=c.getContext('2d');ctx.setTransform(dpr(),0,0,dpr(),0,0);return ctx;}
 function drawChart(c,series){const ctx=prepCanvas(c);const W=c.getBoundingClientRect().width,H=c.getBoundingClientRect().height;const padL=34,padR=10,padT=10,padB=22,plotW=W-padL-padR,plotH=H-padT-padB;const light=document.documentElement.classList.contains('light');ctx.clearRect(0,0,W,H);ctx.fillStyle=light?'#eef1f7':'#0f1526';ctx.fillRect(0,0,W,H);ctx.strokeStyle=light?'#ccd4e0':'#22314f';ctx.beginPath();for(let g=0;g<=4;g++){const y=padT+plotH*g/4;ctx.moveTo(padL,y);ctx.lineTo(padL+plotW,y);}for(let m=0;m<=60;m+=10){const x=padL+plotW*(m/60);ctx.moveTo(x,padT);ctx.lineTo(x,padT+plotH);}ctx.stroke();ctx.fillStyle=light?'#5a6b8a':'#9fb2d7';ctx.font='12px system-ui,Segoe UI,Roboto,Apple SD Gothic Neo,sans-serif';ctx.textAlign='center';ctx.textBaseline='top';for(let m=0;m<=60;m+=10){const x=padL+plotW*(m/60);ctx.fillText((60-m)==0?'지금':`-${60-m}m`,x,padT+plotH+4);}const vals=[];for(const s of series){for(const v of s.data){if(Number.isFinite(v))vals.push(v);}}let vmin=Math.min(...(vals.length?vals:[0])),vmax=Math.max(...(vals.length?vals:[1]));if(vmax===vmin){vmax=vmin+1;}const pad=(vmax-vmin)*0.1;vmin-=pad;vmax+=pad;ctx.textAlign='right';ctx.textBaseline='middle';for(let g=0;g<=4;g++){const y=padT+plotH*g/4;const val=vmax-(vmax-vmin)*g/4;ctx.fillText(val.toFixed((vmax-vmin)<10?1:0),padL-6,y);}function xAt(i){return padL+plotW*(i/59);}function yAt(v){return padT+((vmax-v)/(vmax-vmin))*plotH;}for(const s of series){ctx.beginPath();ctx.lineWidth=2;ctx.strokeStyle=s.color;let moved=false;const N=s.data.length;for(let i=0;i<60;i++){const idx=i-(60-N);const v=(idx>=0&&idx<N)?s.data[idx]:NaN;const x=xAt(i);if(Number.isFinite(v)){const y=yAt(v);if(!moved){ctx.moveTo(x,y);moved=true;}else ctx.lineTo(x,y);}else moved=false;}ctx.stroke();}}
-function renderAllCharts(){if(!$('#graphSection').classList.contains('open'))return;const get=p=>getComputedStyle(document.documentElement).getPropertyValue(p).trim();const src=histBuf.length?histBuf:minuteAverageFromLive(liveBuf);const aht_t=src.map(r=>r.aht_t),scd_t=src.map(r=>r.scd_t);const aht_h=src.map(r=>r.aht_h),scd_h=src.map(r=>r.scd_h);const co2=src.map(r=>r.co2);drawChart($('#chTemp'),[{data:aht_t,color:get('--c-temp-aht')},{data:scd_t,color:get('--c-temp-scd')}]);drawChart($('#chHum'),[{data:aht_h,color:get('--c-hum-aht')},{data:scd_h,color:get('--c-hum-scd')}]);drawChart($('#chCO2'),[{data:co2,color:get('--c-co2')}]);}
+function renderAllCharts(){
+  if(!$('#graphSection').classList.contains('open'))return;
+  const get=p=>getComputedStyle(document.documentElement).getPropertyValue(p).trim();
+  const src=buildDisplayMinutes();
+  const aht_t=src.map(r=>r.aht_t), scd_t=src.map(r=>r.scd_t);
+  const aht_h=src.map(r=>r.aht_h), scd_h=src.map(r=>r.scd_h);
+  const co2  =src.map(r=>r.co2);
+  drawChart($('#chTemp'),[{data:aht_t,color:get('--c-temp-aht')},{data:scd_t,color:get('--c-temp-scd')}]);
+  drawChart($('#chHum'), [{data:aht_h,color:get('--c-hum-aht')},{data:scd_h,color:get('--c-hum-scd')}]);
+  drawChart($('#chCO2'), [{data:co2,color:get('--c-co2')}]);
+}
 
-/* MQTT 이벤트 */
+/* ===== MQTT 이벤트 ===== */
 client.on('connect',()=>{setBanner('MQTT 연결 OK (구독중)');client.subscribe([t_status,t_hist60,t_last1],{qos:1});});
 client.on('reconnect',()=>setBanner('MQTT 재접속 중…'));
 client.on('error',e=>setBanner('MQTT 오류: '+(e?.message||e)));
@@ -256,39 +295,83 @@ client.on('message',(topic,buf)=>{
   try{
     if(!currentDevId){
       const m=topic.match(/^things\/([^/]+)\/(status|last1|history60)$/);
-      if(m){currentDevId=m[1];$('#btnOn').classList.remove('disabled');$('#btnOff').classList.remove('disabled');}
+      if(m){ currentDevId=m[1]; }
     }
-    const p=JSON.parse(msg);
+    const raw=JSON.parse(msg);       // 원본 보존
+    const o=normalize(raw);
+
+    // 펌웨어가 led 필드를 안 보낼 때는 마지막 상태로 보정
+    if (raw.led === undefined) o.led = currentLed;
 
     if(topic.endsWith('/status')||topic.endsWith('/last1')){
-      const o=normalize(p);
       liveBuf.push(o); if(liveBuf.length>720) liveBuf.shift();
-      updateCards(o);
-      rebuildTable(); if($('#graphSection').classList.contains('open'))renderAllCharts();
+      updateCards(o); rebuildTable();
+      if($('#graphSection').classList.contains('open')) renderAllCharts();
     }
     if(topic.endsWith('/history60')){
-      const arr=Array.isArray(p)?p:[]; histBuf=arr.map(x=>normalize(x)).slice(-60);
-      rebuildTable(); if($('#graphSection').classList.contains('open'))renderAllCharts();
+      const arr=Array.isArray(raw)?raw:[]; 
+      histBuf=arr.map(x=>{
+        const t=normalize(x);
+        if (x.led === undefined) t.led = currentLed;  // 안전 보정
+        return t;
+      }).slice(-60);
+      if(liveBuf.length===0 && histBuf.length>0){ currentLed = !!histBuf[histBuf.length-1].led; syncLedUI(currentLed); }
+      rebuildTable();
+      if($('#graphSection').classList.contains('open')) renderAllCharts();
     }
   }catch(e){}
 });
 
-/* LED 제어 */
+/* ===== LED 제어 ===== */
 function publishLed(on){
-  if(!client||!client.connected||!currentDevId){setBanner('LED 명령 실패: 장치 미감지');return;}
-  const topic1=`things/${currentDevId}/cmd/led`,topic2=`${currentDevId}/cmd/led`;
-  const txt=on?'on':'off',json=JSON.stringify({led:txt});
-  client.publish(topic1,txt,{qos:1,retain:false});
-  client.publish(topic1,json,{qos:1,retain:false});
-  client.publish(topic2,txt,{qos:1,retain:false});
-  client.publish(topic2,json,{qos:1,retain:false});
-}
-function sendLed(on){publishLed(on);const t={...(liveBuf[liveBuf.length-1]||{}),led:!!on};updateCards(t);}
-function syncLedUI(isOn){const on=$('#btnOn'),off=$('#btnOff');on.classList.remove('active','dim');off.classList.remove('active','dim');if(isOn){on.classList.add('active');off.classList.add('dim');}else{off.classList.add('active');on.classList.add('dim');}$('#led').textContent='LED: '+(isOn?'ON':'OFF');}
-$('#btnOn').onclick=()=>sendLed(true);
-$('#btnOff').onclick=()=>sendLed(false);
+  const want = !!on;
+  const id = currentDevId;
+  const topics = [];
+  if (id){
+    topics.push(`things/${id}/cmd/led`,`things/${id}/led`,`things/${id}/cmd`);
+    topics.push(`${id}/cmd/led`,`${id}/led`,`${id}/cmd`);
+  }
+  topics.push('things/cmd/led','things/led','things/cmd');
 
-/* 초기 테이블 */
+  const payloads = [
+    want?'on':'off',
+    JSON.stringify({led: want?'on':'off'}),
+    want?'LED_ON':'LED_OFF'
+  ];
+
+  if(!client || !client.connected){
+    setBanner('MQTT 연결 안 됨: LED 명령 전송 실패');
+    return;
+  }
+  let sent = 0;
+  for(const t of topics){
+    for(const p of payloads){
+      client.publish(t, p, {qos:1,retain:false});
+      sent++;
+    }
+  }
+  setBanner(`LED ${want?'ON':'OFF'} 명령 전송(${sent}건)…`);
+}
+function sendLed(on){
+  publishLed(on);
+  const last = liveBuf[liveBuf.length-1] || {};
+  const sample = { ...last, ts: Date.now(), led: !!on };
+  liveBuf.push(sample); if(liveBuf.length>720) liveBuf.shift();
+  currentLed = !!on; syncLedUI(currentLed);
+  updateCards({ ...last, ...sample });
+  rebuildTable(); if($('#graphSection').classList.contains('open')) renderAllCharts();
+}
+function syncLedUI(isOn){
+  const on=$('#btnOn'),off=$('#btnOff');
+  on.classList.remove('active','dim'); off.classList.remove('active','dim');
+  if(isOn){on.classList.add('active');off.classList.add('dim');}
+  else    {off.classList.add('active');on.classList.add('dim');}
+  $('#led').textContent='LED: '+(isOn?'ON':'OFF');
+}
+$('#btnOn').onclick = ()=>sendLed(true);
+$('#btnOff').onclick= ()=>sendLed(false);
+
+/* 초기 */
 rebuildTable();
 </script>
 </body>
