@@ -19,31 +19,19 @@ h1{margin:0 0 8px;font-size:26px;font-weight:800;display:flex;justify-content:sp
 .mut{color:var(--mut);margin:0 0 12px}
 .status{margin-top:8px;color:var(--mut);font-size:14px;white-space:pre-line}
 hr{border:0;border-top:1px solid var(--line);margin:14px 0;transition:border-color .3s}
-
-/* Theme toggle */
 .theme-toggle{cursor:pointer;font-size:22px;user-select:none;transition:transform .2s}
 .theme-toggle:hover{transform:scale(1.15)}
-
-/* KPI Tiles */
 .grid{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:12px;margin-top:6px}
 .tile{background:#0f1526;border-radius:12px;padding:12px;text-align:center;min-height:76px;transition:background .3s}
 :root.light .tile{background:#eef1f7}
 .v{font-size:22px;font-weight:800;margin-top:4px}
-
-/* LED 버튼 */
 .led{display:flex;align-items:center;gap:12px;margin-top:12px;flex-wrap:wrap}
 .btn{border:0;color:#fff;padding:12px 14px;border-radius:12px;cursor:pointer;font-weight:800;min-width:98px;font-size:15px;transition:all .2s}
 .btn.on{background:#2d6bff;} .btn.off{background:#32405e;} .btn.active{background:#00cc66;} .btn.dim{background:#1b2236;}
 .btn.toggle{background:var(--btn-bg);border:1px solid var(--btn-border);color:var(--txt);min-width:120px}
-
-/* 토글 버튼 한 줄 */
 .toggle-row{display:flex;gap:8px;flex-wrap:wrap;margin:8px 0 12px}
-
-/* 숨김/펼침 애니메이션 */
 .collapsible{max-height:0;overflow:hidden;transition:max-height .5s ease,padding .3s ease,opacity .3s ease;opacity:0}
 .collapsible.open{max-height:2000px;padding-top:6px;opacity:1}
-
-/* ===== 테이블 ===== */
 .tablewrap{overflow:auto;background:#0f1526;border-radius:14px;padding:0 6px 6px 0;max-height:50vh;transition:background .3s}
 :root.light .tablewrap{background:#eef1f7}
 table{border-collapse:collapse;width:auto;min-width:100%;table-layout:auto}
@@ -55,17 +43,13 @@ th:nth-child(1){width:54px}
 th:nth-child(2),th:nth-child(3),th:nth-child(4),th:nth-child(5){width:63px}
 th:nth-child(6){width:72px}
 th:nth-child(7){width:52px}
-
-/* ===== Charts ===== */
 .charts{margin-top:14px;display:grid;grid-template-columns:1fr;gap:12px}
 .chart{background:#0f1526;border-radius:12px;padding:10px;transition:background .3s}
 :root.light .chart{background:#eef1f7}
 .chart h3{margin:0 0 8px;font-size:15px;color:var(--mut);font-weight:700}
 .canvas-wrap{position:relative;width:100%;height:200px}
 .canvas-wrap canvas{position:absolute;left:0;top:0;width:100%;height:100%}
-
 #raw{white-space:pre-line;font-size:12px;color:var(--mut)}
-
 @media (max-width:480px){
   h1{font-size:22px}
   .grid{gap:10px} .tile{padding:12px;min-height:70px} .v{font-size:20px}
@@ -102,19 +86,13 @@ th:nth-child(7){width:52px}
     <button class="btn toggle" id="toggleGraph">📊 그래프 보기</button>
   </div>
 
-  <!-- 기본 접힘 -->
   <div id="tableSection" class="collapsible">
     <div class="tablewrap">
       <table>
         <thead>
           <tr>
-            <th>시간</th>
-            <th>AHT&nbsp;°C</th>
-            <th>AHT&nbsp;%</th>
-            <th>SCD&nbsp;°C</th>
-            <th>SCD&nbsp;%</th>
-            <th>CO₂</th>
-            <th>LED</th>
+            <th>시간</th><th>AHT&nbsp;°C</th><th>AHT&nbsp;%</th>
+            <th>SCD&nbsp;°C</th><th>SCD&nbsp;%</th><th>CO₂</th><th>LED</th>
           </tr>
         </thead>
         <tbody id="logtbl"></tbody>
@@ -135,29 +113,53 @@ th:nth-child(7){width:52px}
 </div></div>
 
 <script>
-/* ===== 모바일 content://, file://, blob:// 까지 지원하도록 BASE 계산 보강 ===== */
-
-// URL 파라미터로 수동 지정 가능: ?base=192.168.31.204 또는 ?base=http://192.168.31.204
+/* ===================== BASE 자동 탐색 ===================== */
+// ?base=192.168.31.204 또는 ?base=http://192.168.31.204 지원
 const qs = new URLSearchParams(location.search);
 const baseParam = qs.get('base') || qs.get('host');
+const LS_KEY = 'esp32_base';
+let   BASE = '';   // 결정되면 '/api/...' 앞에 붙습니다.
 
-// 현재 프로토콜
-const proto = location.protocol.replace(':','').toLowerCase();
-const isWeb = (proto === 'http' || proto === 'https');
-
-// BASE 결정: http/https가 아니면 ESP32 고정 IP 사용
-const BASE = (()=>{
+// 후보들(우선순위): 쿼리 → 저장값 → 상대경로 → 고정IP → mDNS
+const baseCandidates = (() => {
+  const list = [];
   if (baseParam) {
-    return baseParam.startsWith('http') ? baseParam.replace(/\/+$/,'') : ('http://' + baseParam);
+    list.push(baseParam.startsWith('http') ? baseParam.replace(/\/+$/,'') : ('http://' + baseParam));
   }
-  return isWeb ? '' : 'http://192.168.31.204'; // 필요시 IP만 바꾸세요
+  const saved = localStorage.getItem(LS_KEY);
+  if (saved) list.push(saved);
+  list.push(''); // 같은 오리진(로컬서버에 직접 올린 경우)
+  list.push('http://192.168.31.204'); // 필요시 변경
+  list.push('http://esp32.local');    // mDNS
+  return list.filter((v,i,arr)=>arr.indexOf(v)===i);
 })();
 
-// 배너에 현재 기준 표시
-document.getElementById('banner').textContent = '요청 기준: ' + (BASE || location.origin);
+// 타임아웃 fetch
+async function fetchWithTimeout(url, opt={}, timeoutMs=1500){
+  const ctrl = new AbortController();
+  const id = setTimeout(()=>ctrl.abort(), timeoutMs);
+  try{
+    const res = await fetch(url, {...opt, signal: ctrl.signal, cache:'no-store', mode:'cors'});
+    return res;
+  } finally { clearTimeout(id); }
+}
 
-/* ===== 이하 원본 로직 유지 ===== */
+// BASE 탐색
+async function discoverBase(){
+  for (const b of baseCandidates){
+    try{
+      const url = (b||'') + '/api/status';
+      const r = await fetchWithTimeout(url, {}, 1500);
+      if (r.ok) { BASE = b||''; localStorage.setItem(LS_KEY, BASE); return BASE; }
+    }catch(e){ /* skip */ }
+  }
+  throw new Error('ESP32 탐색 실패');
+}
 
+// 배너 업데이트
+function showBanner(msg){ document.getElementById('banner').textContent = msg; }
+
+/* ===================== 공통 도우미 ===================== */
 const $=s=>document.querySelector(s);
 const fastMs=3000, maxRows=10;
 
@@ -169,31 +171,31 @@ const EP = {
   ledOff : ['/api/led?state=off','/led/off','/api/led/off','/set?led=0'],
 };
 
-async function fetchJsonWithBase(u, opt={}) {
+async function fetchJson(u, opt={}){
   const url = u.startsWith('/') ? (BASE + u) : u;
   const r = await fetch(url, {...opt, cache:'no-store', mode:'cors'});
-  if (!r.ok) throw new Error(r.status+' '+r.statusText);
+  if(!r.ok) throw new Error(r.status+' '+r.statusText);
   return r.json();
 }
-async function fetchFirstJson(cands,opt={}) {
+async function fetchFirstJson(cands,opt={}){
   let lastErr;
-  for (const u of cands) {
-    try { return await fetchJsonWithBase(u,opt); }
+  for(const u of cands){
+    try{ return await fetchJson(u,opt); }
     catch(e){ lastErr=e; }
   }
   throw lastErr ?? new Error('모든 경로 실패');
 }
-async function hitFirstOk(cands,opt={}) {
+async function hitFirstOk(cands,opt={}){
   let lastErr;
-  for (const u of cands) {
-    try {
+  for(const u of cands){
+    try{
       const url = u.startsWith('/') ? (BASE + u) : u;
       const r = await fetch(url, {...opt, cache:'no-store', mode:'cors'});
-      if (r.ok) return true;
+      if(r.ok) return true;
       lastErr = new Error(r.status+' '+r.statusText);
-    } catch(e){ lastErr=e; }
+    }catch(e){ lastErr=e; }
   }
-  if (lastErr) throw lastErr;
+  if(lastErr) throw lastErr;
   return false;
 }
 
@@ -210,6 +212,7 @@ function syncButtons(led){
 
 let histBuf=[];
 
+/* ===================== 데이터 로딩 ===================== */
 async function refreshFast(){
   try{
     const s=await fetchFirstJson(EP.status);
@@ -235,13 +238,12 @@ async function refreshFast(){
     ].join('\n');
     $('#raw').textContent=line;
 
-    $('#banner').textContent='AHT25/SCD42 연결 OK';
+    showBanner('연결: ' + (BASE||location.origin));
   }catch(e){
-    $('#banner').textContent='통신 오류: '+e.message+' · '+(BASE||location.origin);
+    showBanner('통신 오류: '+e.message+' · 기준 '+(BASE||location.origin));
   }
 }
 
-/* ===== 히스토리/테이블 & 차트 ===== */
 function normalizeRec(o){
   return {
     aht_t:Number(o.aht_t ?? o.aht_temp ?? o.temp ?? o.at) || NaN,
@@ -296,7 +298,7 @@ async function refreshLogOne(){
   }catch(e){}
 }
 
-/* ===== 차트 ===== */
+/* ===================== 차트 & 토글 ===================== */
 const dpr=()=>window.devicePixelRatio||1;
 function prepCanvas(canvas){
   const rect=canvas.getBoundingClientRect(); const w=Math.max(1,rect.width), h=Math.max(1,rect.height);
@@ -364,25 +366,27 @@ function renderAllCharts(){
   drawChart($('#chHum'), [{name:'AHT25 습도',data:aht_h,color:'#7aa0ff'},{name:'SCD42 습도',data:scd_h,color:'#ff9a7a'}],{legend:true});
   drawChart($('#chCO2'), [{name:'SCD42 CO₂', data:co2,  color:'#7aa0ff'}],{legend:true});
 }
-
-/* ===== 토글 유틸 (추가) ===== */
 function setToggle(btn, sec, labelShow, labelHide){
   const sync = ()=> btn.textContent = sec.classList.contains('open') ? labelHide : labelShow;
   btn.addEventListener('click', ()=>{
     sec.classList.toggle('open');
     sync();
-    // 열릴 때만 부하 작업 수행
     if (sec.id === 'graphSection' && sec.classList.contains('open')) renderAllCharts();
     if (sec.id === 'tableSection' && sec.classList.contains('open')) loadHistory60();
   });
-  // 초기 라벨 세팅 (기본: 닫힘)
-  sec.classList.remove('open');
-  sync();
+  sec.classList.remove('open'); sync();
 }
 
-/* ===== Boot ===== */
+/* ===================== 부트스트랩 ===================== */
 (async()=>{
-  // 토글 핸들러 연결 (★ 추가된 부분)
+  showBanner('ESP32 탐색 중…');
+  try{
+    await discoverBase();
+    showBanner('연결: ' + (BASE || location.origin));
+  }catch(e){
+    showBanner('탐색 실패: '+e.message+' · base= 파라미터로 직접 지정 가능');
+  }
+
   setToggle($('#toggleTable'), $('#tableSection'), '📋 테이블 보기', '📋 테이블 숨기기');
   setToggle($('#toggleGraph'), $('#graphSection'), '📊 그래프 보기', '📊 그래프 숨기기');
 
@@ -394,5 +398,15 @@ function setToggle(btn, sec, labelShow, labelHide){
   $('#on').onclick  = async()=>{ await hitFirstOk(EP.ledOn);  await refreshFast(); };
   $('#off').onclick = async()=>{ await hitFirstOk(EP.ledOff); await refreshFast(); };
 })();
+
+// 라이트/다크 토글(기존 유지)
+const themeToggle=$('#themeToggle');
+function applyTheme(t){
+  document.documentElement.classList.toggle('light', t==='light');
+  themeToggle.textContent = (t==='light') ? '☀️' : '🌙';
+  renderAllCharts();
+}
+applyTheme(localStorage.getItem('theme')||'dark');
+themeToggle.onclick=()=>{const t=document.documentElement.classList.contains('light')?'dark':'light';applyTheme(t);localStorage.setItem('theme',t);};
 </script>
 </body></html>
