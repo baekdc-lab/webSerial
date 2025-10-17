@@ -135,34 +135,32 @@ th:nth-child(7){width:52px}
 </div></div>
 
 <script>
-/* ===== 첨부 디자인 유지 + 외부 파일 실행 보강 ===== */
+/* ===== 모바일 content://, file://, blob:// 까지 지원하도록 BASE 계산 보강 ===== */
 
-// 파일로 열면 ESP32 고정 IP 사용(필요시 수정)
-const BASE = (location.protocol === 'file:') ? 'http://192.168.31.204' : '';
+// URL 파라미터로 수동 지정 가능: ?base=192.168.31.204 또는 ?base=http://192.168.31.204
+const qs = new URLSearchParams(location.search);
+const baseParam = qs.get('base') || qs.get('host');
+
+// 현재 프로토콜
+const proto = location.protocol.replace(':','').toLowerCase();
+const isWeb = (proto === 'http' || proto === 'https');
+
+// BASE 결정: http/https가 아니면 ESP32 고정 IP 사용
+const BASE = (()=>{
+  if (baseParam) {
+    return baseParam.startsWith('http') ? baseParam.replace(/\/+$/,'') : ('http://' + baseParam);
+  }
+  return isWeb ? '' : 'http://192.168.31.204'; // 필요시 IP만 바꾸세요
+})();
+
+// 배너에 현재 기준 표시
+document.getElementById('banner').textContent = '요청 기준: ' + (BASE || location.origin);
+
+/* ===== 이하 원본 로직 유지 ===== */
 
 const $=s=>document.querySelector(s);
-const fastMs=3000, maxRows=10; // ←★★ 여기만 10으로 변경(테이블 10개 표시)
+const fastMs=3000, maxRows=10;
 
-/* ===== Theme toggle (원본 유지) ===== */
-const themeToggle=$('#themeToggle');
-function applyTheme(t){
-  document.documentElement.classList.toggle('light', t==='light');
-  themeToggle.textContent = (t==='light') ? '☀️' : '🌙';
-  renderAllCharts();
-}
-applyTheme(localStorage.getItem('theme')||'dark');
-themeToggle.onclick=()=>{const t=document.documentElement.classList.contains('light')?'dark':'light';applyTheme(t);localStorage.setItem('theme',t);};
-
-/* ===== Toggle buttons (원본 유지) ===== */
-function setToggle(btn,sec,labelShow,labelHide){
-  const sync=()=>btn.textContent=sec.classList.contains('open')?labelHide:labelShow;
-  btn.addEventListener('click',()=>{sec.classList.toggle('open');sync();if(sec.id==='graphSection'&&sec.classList.contains('open'))renderAllCharts();});
-  sync();
-}
-setToggle($('#toggleTable'),$('#tableSection'),'📋 테이블 보기','📋 테이블 숨기기');
-setToggle($('#toggleGraph'),$('#graphSection'),'📊 그래프 보기','📊 그래프 숨기기');
-
-/* ===== Resilient endpoints (첨부 EP 그대로) ===== */
 const EP = {
   status : ['/api/status','/status','/readings','/get','/api/readings'],
   history60: ['/api/history?limit=60','/history?limit=60','/api/history','/history','/logs'],
@@ -171,7 +169,6 @@ const EP = {
   ledOff : ['/api/led?state=off','/led/off','/api/led/off','/set?led=0'],
 };
 
-/* ===== 공통 fetch: BASE 프리픽스 + no-store + CORS ===== */
 async function fetchJsonWithBase(u, opt={}) {
   const url = u.startsWith('/') ? (BASE + u) : u;
   const r = await fetch(url, {...opt, cache:'no-store', mode:'cors'});
@@ -200,12 +197,10 @@ async function hitFirstOk(cands,opt={}) {
   return false;
 }
 
-/* ===== Formatters ===== */
 const fmtT=v=>v==null?'--.-':Number(v).toFixed(1);
 const fmtP=v=>v==null?'--':Math.round(Number(v));
 const fmtC=v=>v==null?'----':Number(v);
 
-/* ===== LED 버튼 상태 표시 ===== */
 function syncButtons(led){
   const on=$('#on'),off=$('#off');
   on.classList.remove('active','dim'); off.classList.remove('active','dim');
@@ -213,10 +208,8 @@ function syncButtons(led){
   else   {off.classList.add('active');on.classList.add('dim');}
 }
 
-/* ===== 데이터 버퍼 ===== */
 let histBuf=[];
 
-/* ===== 상태 폴링 ===== */
 async function refreshFast(){
   try{
     const s=await fetchFirstJson(EP.status);
@@ -248,7 +241,7 @@ async function refreshFast(){
   }
 }
 
-/* ===== History (table + charts) ===== */
+/* ===== 히스토리/테이블 & 차트 ===== */
 function normalizeRec(o){
   return {
     aht_t:Number(o.aht_t ?? o.aht_temp ?? o.temp ?? o.at) || NaN,
@@ -303,7 +296,7 @@ async function refreshLogOne(){
   }catch(e){}
 }
 
-/* ===== Mini chart engine + Legend (원본 유지) ===== */
+/* ===== 차트 ===== */
 const dpr=()=>window.devicePixelRatio||1;
 function prepCanvas(canvas){
   const rect=canvas.getBoundingClientRect(); const w=Math.max(1,rect.width), h=Math.max(1,rect.height);
@@ -372,14 +365,32 @@ function renderAllCharts(){
   drawChart($('#chCO2'), [{name:'SCD42 CO₂', data:co2,  color:'#7aa0ff'}],{legend:true});
 }
 
+/* ===== 토글 유틸 (추가) ===== */
+function setToggle(btn, sec, labelShow, labelHide){
+  const sync = ()=> btn.textContent = sec.classList.contains('open') ? labelHide : labelShow;
+  btn.addEventListener('click', ()=>{
+    sec.classList.toggle('open');
+    sync();
+    // 열릴 때만 부하 작업 수행
+    if (sec.id === 'graphSection' && sec.classList.contains('open')) renderAllCharts();
+    if (sec.id === 'tableSection' && sec.classList.contains('open')) loadHistory60();
+  });
+  // 초기 라벨 세팅 (기본: 닫힘)
+  sec.classList.remove('open');
+  sync();
+}
+
 /* ===== Boot ===== */
 (async()=>{
+  // 토글 핸들러 연결 (★ 추가된 부분)
+  setToggle($('#toggleTable'), $('#tableSection'), '📋 테이블 보기', '📋 테이블 숨기기');
+  setToggle($('#toggleGraph'), $('#graphSection'), '📊 그래프 보기', '📊 그래프 숨기기');
+
   await loadHistory60();
   await refreshFast();
   setInterval(refreshFast, fastMs);
   setInterval(refreshLogOne, 60000);
 
-  // LED: 후보 엔드포인트 순차 시도 (디자인 불변)
   $('#on').onclick  = async()=>{ await hitFirstOk(EP.ledOn);  await refreshFast(); };
   $('#off').onclick = async()=>{ await hitFirstOk(EP.ledOff); await refreshFast(); };
 })();
