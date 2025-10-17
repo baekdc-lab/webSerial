@@ -58,6 +58,8 @@ th:nth-child(7){width:52px}
   .tablewrap{max-height:52vh}
   .canvas-wrap{height:180px}
 }
+.alert{margin-top:8px;padding:10px 12px;border-radius:10px;background:#261b1b;color:#ffdede;border:1px solid #593b3b}
+.alert a{color:#ffe0a8;text-decoration:underline}
 </style></head><body>
 <div class="wrap"><div class="card">
   <h1>ESP32 센서 대시보드
@@ -66,6 +68,8 @@ th:nth-child(7){width:52px}
   <p class="mut">AHT25(온/습) + SCD42(온/습/CO₂) · LED제어</p>
 
   <div id="banner" class="status">—</div>
+  <div id="mixedWarn" class="alert" style="display:none"></div>
+
   <div class="grid">
     <div class="tile"><div>AHT25 온도</div><div id="aht_t" class="v">--.- °C</div></div>
     <div class="tile"><div>AHT25 습도</div><div id="aht_h" class="v">-- %</div></div>
@@ -113,14 +117,27 @@ th:nth-child(7){width:52px}
 </div></div>
 
 <script>
-/* ===================== BASE 자동 탐색 ===================== */
-// ?base=192.168.31.204 또는 ?base=http://192.168.31.204 지원
+/* ====== 설정 & 유틸 ====== */
 const qs = new URLSearchParams(location.search);
 const baseParam = qs.get('base') || qs.get('host');
 const LS_KEY = 'esp32_base';
-let   BASE = '';   // 결정되면 '/api/...' 앞에 붙습니다.
+const isHttps = location.protocol === 'https:';
+let   BASE = '';
 
-// 후보들(우선순위): 쿼리 → 저장값 → 상대경로 → 고정IP → mDNS
+function showBanner(msg){ document.getElementById('banner').textContent = msg; }
+function showMixedHelp(ip){
+  const el = document.getElementById('mixedWarn');
+  el.style.display='block';
+  const httpUrl = `http://${ip}/mqtt.html?base=${ip}`;
+  el.innerHTML = `
+    <b>⚠️ 보안 정책(HTTPS → HTTP 차단) 때문에 장치와 통신할 수 없습니다.</b><br>
+    아래 중 하나로 열어주세요.<br>
+    1) <a href="${httpUrl}">HTTP로 다시 열기 (권장)</a> — 같은 네트워크에서만 동작합니다.<br>
+    2) 또는 프록시/리버스프록시로 HTTPS 엔드포인트를 구성하고 <code>?base=https://프록시도메인</code>을 사용하세요.
+  `;
+}
+
+/* ====== BASE 후보 & 자동 탐색 ====== */
 const baseCandidates = (() => {
   const list = [];
   if (baseParam) {
@@ -128,13 +145,15 @@ const baseCandidates = (() => {
   }
   const saved = localStorage.getItem(LS_KEY);
   if (saved) list.push(saved);
-  list.push(''); // 같은 오리진(로컬서버에 직접 올린 경우)
-  list.push('http://192.168.31.204'); // 필요시 변경
-  list.push('http://esp32.local');    // mDNS
-  return list.filter((v,i,arr)=>arr.indexOf(v)===i);
+  // 같은 오리진
+  list.push('');
+  // 사내 고정 IP (필요시 변경)
+  list.push('http://192.168.31.204');
+  // mDNS
+  list.push('http://esp32.local');
+  return [...new Set(list)];
 })();
 
-// 타임아웃 fetch
 async function fetchWithTimeout(url, opt={}, timeoutMs=1500){
   const ctrl = new AbortController();
   const id = setTimeout(()=>ctrl.abort(), timeoutMs);
@@ -144,22 +163,36 @@ async function fetchWithTimeout(url, opt={}, timeoutMs=1500){
   } finally { clearTimeout(id); }
 }
 
-// BASE 탐색
 async function discoverBase(){
+  let mixedBlockedIP = null;
+
   for (const b of baseCandidates){
     try{
       const url = (b||'') + '/api/status';
+
+      // 혼합컨텐츠 사전 감지: 페이지가 https인데 후보가 http면 차단될 수 있음
+      if (isHttps && b.startsWith('http://')) {
+        mixedBlockedIP = b.replace(/^http:\/\//,'');
+        continue; // 이 후보는 건너뜀
+      }
+
       const r = await fetchWithTimeout(url, {}, 1500);
-      if (r.ok) { BASE = b||''; localStorage.setItem(LS_KEY, BASE); return BASE; }
-    }catch(e){ /* skip */ }
+      if (r.ok) {
+        BASE = b||'';
+        localStorage.setItem(LS_KEY, BASE);
+        return BASE;
+      }
+    }catch(e){ /* 다음 후보 시도 */ }
+  }
+
+  // 여기까지 실패했는데, 혼합컨텐츠 후보가 있었다면 사용자에게 안내
+  if (mixedBlockedIP) {
+    showMixedHelp(mixedBlockedIP);
   }
   throw new Error('ESP32 탐색 실패');
 }
 
-// 배너 업데이트
-function showBanner(msg){ document.getElementById('banner').textContent = msg; }
-
-/* ===================== 공통 도우미 ===================== */
+/* ====== 공통 함수들 (기존 유지) ====== */
 const $=s=>document.querySelector(s);
 const fastMs=3000, maxRows=10;
 
@@ -212,7 +245,7 @@ function syncButtons(led){
 
 let histBuf=[];
 
-/* ===================== 데이터 로딩 ===================== */
+/* ====== 데이터 로딩 ====== */
 async function refreshFast(){
   try{
     const s=await fetchFirstJson(EP.status);
@@ -244,6 +277,7 @@ async function refreshFast(){
   }
 }
 
+/* ====== 테이블/차트 ====== */
 function normalizeRec(o){
   return {
     aht_t:Number(o.aht_t ?? o.aht_temp ?? o.temp ?? o.at) || NaN,
@@ -298,7 +332,7 @@ async function refreshLogOne(){
   }catch(e){}
 }
 
-/* ===================== 차트 & 토글 ===================== */
+/* ====== 차트 & 토글 ====== */
 const dpr=()=>window.devicePixelRatio||1;
 function prepCanvas(canvas){
   const rect=canvas.getBoundingClientRect(); const w=Math.max(1,rect.width), h=Math.max(1,rect.height);
@@ -377,14 +411,14 @@ function setToggle(btn, sec, labelShow, labelHide){
   sec.classList.remove('open'); sync();
 }
 
-/* ===================== 부트스트랩 ===================== */
+/* ====== 부트 ====== */
 (async()=>{
   showBanner('ESP32 탐색 중…');
   try{
     await discoverBase();
     showBanner('연결: ' + (BASE || location.origin));
   }catch(e){
-    showBanner('탐색 실패: '+e.message+' · base= 파라미터로 직접 지정 가능');
+    showBanner('탐색 실패: '+e.message+' · ?base= 파라미터/HTTP로 열기 참고');
   }
 
   setToggle($('#toggleTable'), $('#tableSection'), '📋 테이블 보기', '📋 테이블 숨기기');
@@ -399,7 +433,7 @@ function setToggle(btn, sec, labelShow, labelHide){
   $('#off').onclick = async()=>{ await hitFirstOk(EP.ledOff); await refreshFast(); };
 })();
 
-// 라이트/다크 토글(기존 유지)
+/* 라이트/다크 토글 */
 const themeToggle=$('#themeToggle');
 function applyTheme(t){
   document.documentElement.classList.toggle('light', t==='light');
