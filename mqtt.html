@@ -135,12 +135,15 @@ th:nth-child(7){width:52px}
 </div></div>
 
 <script>
+/* ===== 첨부 디자인 유지 + 외부 파일 실행 보강 ===== */
+
+// 파일로 열면 ESP32 고정 IP 사용(필요시 수정)
 const BASE = (location.protocol === 'file:') ? 'http://192.168.31.204' : '';
 
 const $=s=>document.querySelector(s);
-const fastMs=3000, maxRows=60;
+const fastMs=3000, maxRows=10; // ←★★ 여기만 10으로 변경(테이블 10개 표시)
 
-/* ===== Theme toggle ===== */
+/* ===== Theme toggle (원본 유지) ===== */
 const themeToggle=$('#themeToggle');
 function applyTheme(t){
   document.documentElement.classList.toggle('light', t==='light');
@@ -150,7 +153,7 @@ function applyTheme(t){
 applyTheme(localStorage.getItem('theme')||'dark');
 themeToggle.onclick=()=>{const t=document.documentElement.classList.contains('light')?'dark':'light';applyTheme(t);localStorage.setItem('theme',t);};
 
-/* ===== Toggle buttons ===== */
+/* ===== Toggle buttons (원본 유지) ===== */
 function setToggle(btn,sec,labelShow,labelHide){
   const sync=()=>btn.textContent=sec.classList.contains('open')?labelHide:labelShow;
   btn.addEventListener('click',()=>{sec.classList.toggle('open');sync();if(sec.id==='graphSection'&&sec.classList.contains('open'))renderAllCharts();});
@@ -159,7 +162,7 @@ function setToggle(btn,sec,labelShow,labelHide){
 setToggle($('#toggleTable'),$('#tableSection'),'📋 테이블 보기','📋 테이블 숨기기');
 setToggle($('#toggleGraph'),$('#graphSection'),'📊 그래프 보기','📊 그래프 숨기기');
 
-/* ===== Resilient endpoints ===== */
+/* ===== Resilient endpoints (첨부 EP 그대로) ===== */
 const EP = {
   status : ['/api/status','/status','/readings','/get','/api/readings'],
   history60: ['/api/history?limit=60','/history?limit=60','/api/history','/history','/logs'],
@@ -167,20 +170,53 @@ const EP = {
   ledOn  : ['/api/led?state=on','/led/on','/api/led/on','/set?led=1'],
   ledOff : ['/api/led?state=off','/led/off','/api/led/off','/set?led=0'],
 };
-async function fetchFirstJson(cands,opt={}){for(const u of cands){try{const r=await fetch(u.startsWith('/')? (BASE+u) : u,{...opt,cache:'no-store'});if(!r.ok)continue;return await r.json();}catch(e){}}throw new Error('모든 경로 실패');}
+
+/* ===== 공통 fetch: BASE 프리픽스 + no-store + CORS ===== */
+async function fetchJsonWithBase(u, opt={}) {
+  const url = u.startsWith('/') ? (BASE + u) : u;
+  const r = await fetch(url, {...opt, cache:'no-store', mode:'cors'});
+  if (!r.ok) throw new Error(r.status+' '+r.statusText);
+  return r.json();
+}
+async function fetchFirstJson(cands,opt={}) {
+  let lastErr;
+  for (const u of cands) {
+    try { return await fetchJsonWithBase(u,opt); }
+    catch(e){ lastErr=e; }
+  }
+  throw lastErr ?? new Error('모든 경로 실패');
+}
+async function hitFirstOk(cands,opt={}) {
+  let lastErr;
+  for (const u of cands) {
+    try {
+      const url = u.startsWith('/') ? (BASE + u) : u;
+      const r = await fetch(url, {...opt, cache:'no-store', mode:'cors'});
+      if (r.ok) return true;
+      lastErr = new Error(r.status+' '+r.statusText);
+    } catch(e){ lastErr=e; }
+  }
+  if (lastErr) throw lastErr;
+  return false;
+}
 
 /* ===== Formatters ===== */
 const fmtT=v=>v==null?'--.-':Number(v).toFixed(1);
 const fmtP=v=>v==null?'--':Math.round(Number(v));
 const fmtC=v=>v==null?'----':Number(v);
 
-/* ===== LED buttons state ===== */
-function syncButtons(led){const on=$('#on'),off=$('#off');on.classList.remove('active','dim');off.classList.remove('active','dim');if(led){on.classList.add('active');off.classList.add('dim');}else{off.classList.add('active');on.classList.add('dim');}}
+/* ===== LED 버튼 상태 표시 ===== */
+function syncButtons(led){
+  const on=$('#on'),off=$('#off');
+  on.classList.remove('active','dim'); off.classList.remove('active','dim');
+  if(led){on.classList.add('active');off.classList.add('dim');}
+  else   {off.classList.add('active');on.classList.add('dim');}
+}
 
-/* ===== Data buffer ===== */
+/* ===== 데이터 버퍼 ===== */
 let histBuf=[];
 
-/* ===== Status poll ===== */
+/* ===== 상태 폴링 ===== */
 async function refreshFast(){
   try{
     const s=await fetchFirstJson(EP.status);
@@ -199,7 +235,6 @@ async function refreshFast(){
     $('#led').textContent='LED: '+(led?'ON':'OFF');
     syncButtons(led);
 
-    // 하단 포맷 (요청 형식)
     const line = [
       `AHT25: ${fmtT(aht_t)} °C | ${fmtP(aht_h)} % | LED=${led?'ON':'OFF'}`,
       `SCD42: ${fmtT(scd_t)} °C | ${fmtP(scd_h)} % | ${fmtC(co2)} ppm | LED=${led?'ON':'OFF'}`,
@@ -207,9 +242,10 @@ async function refreshFast(){
     ].join('\n');
     $('#raw').textContent=line;
 
-    // 상단 배너는 RSSI 제거
     $('#banner').textContent='AHT25/SCD42 연결 OK';
-  }catch(e){$('#banner').textContent='통신 오류: '+e.message;}
+  }catch(e){
+    $('#banner').textContent='통신 오류: '+e.message+' · '+(BASE||location.origin);
+  }
 }
 
 /* ===== History (table + charts) ===== */
@@ -267,7 +303,7 @@ async function refreshLogOne(){
   }catch(e){}
 }
 
-/* ===== Mini chart engine + Legend ===== */
+/* ===== Mini chart engine + Legend (원본 유지) ===== */
 const dpr=()=>window.devicePixelRatio||1;
 function prepCanvas(canvas){
   const rect=canvas.getBoundingClientRect(); const w=Math.max(1,rect.width), h=Math.max(1,rect.height);
@@ -283,7 +319,6 @@ function drawChart(canvas, series, opts={}){
   ctx.clearRect(0,0,W,H);
   ctx.fillStyle=light?'#eef1f7':'#0f1526'; ctx.fillRect(0,0,W,H);
 
-  // Legend (top-left)
   if (opts.legend && series.some(s=>s.name)){
     const items = series.filter(s=>s.name);
     ctx.font='12px system-ui,Segoe UI,Roboto,Apple SD Gothic Neo,sans-serif';
@@ -299,23 +334,19 @@ function drawChart(canvas, series, opts={}){
     }
   }
 
-  // Grid
   ctx.strokeStyle=light?'#ccd4e0':'#22314f'; ctx.beginPath();
   for(let g=0;g<=4;g++){const y=padT+plotH*g/4;ctx.moveTo(padL,y);ctx.lineTo(padL+plotW,y);}
   for(let m=0;m<=60;m+=10){const x=padL+plotW*(m/60);ctx.moveTo(x,padT);ctx.lineTo(x,padT+plotH);}
   ctx.stroke();
 
-  // X labels
   ctx.fillStyle=light?'#5a6b8a':'#9fb2d7'; ctx.font='12px system-ui,Segoe UI,Roboto,Apple SD Gothic Neo,sans-serif';
   ctx.textAlign='center'; ctx.textBaseline='top';
   for(let m=0;m<=60;m+=10){const x=padL+plotW*(m/60);ctx.fillText((60-m)==0?'지금':`-${60-m}m`,x,padT+plotH+6);}
 
-  // Y axis range from existing data
   const vals=[]; for(const s of series){for(const v of s.data){if(Number.isFinite(v)) vals.push(v);}}
   let vmin=Math.min(...(vals.length?vals:[0])), vmax=Math.max(...(vals.length?vals:[1])); if(vmax===vmin){vmax=vmin+1;}
   const pad=(vmax-vmin)*0.1; vmin-=pad; vmax+=pad;
 
-  // Y labels
   ctx.textAlign='right'; ctx.textBaseline='middle';
   for(let g=0;g<=4;g++){const y=padT+plotH*g/4, val=vmax-(vmax-vmin)*g/4; ctx.fillText(val.toFixed((vmax-vmin)<10?1:0), padL-6, y);}
 
@@ -347,8 +378,10 @@ function renderAllCharts(){
   await refreshFast();
   setInterval(refreshFast, fastMs);
   setInterval(refreshLogOne, 60000);
-  $('#on').onclick  = async()=>{await fetch((EP.ledOn[0].startsWith('/')?BASE:'')+EP.ledOn[0]);  refreshFast();};
-  $('#off').onclick = async()=>{await fetch((EP.ledOff[0].startsWith('/')?BASE:'')+EP.ledOff[0]); refreshFast();};
+
+  // LED: 후보 엔드포인트 순차 시도 (디자인 불변)
+  $('#on').onclick  = async()=>{ await hitFirstOk(EP.ledOn);  await refreshFast(); };
+  $('#off').onclick = async()=>{ await hitFirstOk(EP.ledOff); await refreshFast(); };
 })();
 </script>
 </body></html>
