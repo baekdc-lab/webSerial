@@ -7,60 +7,34 @@
 :root{ --bg:#0b1020;--card:#131a2b;--txt:#e8eefc;--mut:#9fb2d7;--line:#22314f;--btn-bg:#1b2b4a;--btn-border:#2c3e63; }
 :root.light{ --bg:#f5f7fa;--card:#ffffff;--txt:#0b1020;--mut:#5a6b8a;--line:#ccd4e0;--btn-bg:#e4e8ef;--btn-border:#b0bacb; }
 *{box-sizing:border-box}
-body{margin:0;background:var(--bg);color:var(--txt);font:16px/1.5 system-ui,Segoe UI,Roboto,Apple SD Gothic Neo,sans-serif;transition:background .3s,color .3s}
+body{margin:0;background:var(--bg);color:var(--txt);font:16px/1.5 system-ui,Segoe UI,Roboto,Apple SD Gothic Neo,sans-serif}
 .wrap{max-width:900px;margin:20px auto;padding:0 12px}
-.card{background:var(--card);border-radius:16px;padding:16px;box-shadow:0 10px 30px rgba(0,0,0,.25);transition:background .3s}
+.card{background:var(--card);border-radius:16px;padding:16px;box-shadow:0 10px 30px rgba(0,0,0,.25)}
 h1{margin:0 0 8px;font-size:26px;font-weight:800;display:flex;justify-content:space-between;align-items:center}
 .mut{color:var(--mut);margin:0 0 12px}
 .status{margin-top:8px;color:var(--mut);font-size:14px;white-space:pre-line}
-hr{border:0;border-top:1px solid var(--line);margin:14px 0;transition:border-color .3s}
-
-/* Theme toggle */
-.theme-toggle{cursor:pointer;font-size:22px;user-select:none;transition:transform .2s}
-.theme-toggle:hover{transform:scale(1.15)}
-
-/* Wi-Fi/토글 버튼 */
 .actions{display:flex;gap:8px;align-items:center}
-.btn{border:0;color:#fff;padding:12px 14px;border-radius:12px;cursor:pointer;font-weight:800;min-width:98px;font-size:15px;transition:all .2s}
-.btn.toggle{background:var(--btn-bg);border:1px solid var(--btn-border);color:var(--txt);min-width:120px}
-.btn.wifi{background:var(--btn-bg);border:1px solid var(--btn-border);color:var(--txt);min-width:96px}
-
-/* KPI Tiles */
+.btn{border:0;color:#fff;padding:12px 14px;border-radius:12px;cursor:pointer;font-weight:800;min-width:98px;font-size:15px}
+.btn.toggle{background:var(--btn-bg);border:1px solid var(--btn-border);color:var(--txt)}
+.btn.wifi{background:var(--btn-bg);border:1px solid var(--btn-border);color:var(--txt)}
 .grid{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:12px;margin-top:6px}
-.tile{background:#0f1526;border-radius:12px;padding:12px;text-align:center;min-height:76px;transition:background .3s}
-:root.light .tile{background:#eef1f7}
+.tile{background:#0f1526;border-radius:12px;padding:12px;text-align:center;min-height:76px}
 .v{font-size:22px;font-weight:800;margin-top:4px}
-
-/* LED 버튼 */
 .led{display:flex;align-items:center;gap:12px;margin-top:12px;flex-wrap:wrap}
 .btn.on{background:#2d6bff;} .btn.off{background:#32405e;} .btn.active{background:#00cc66;} .btn.dim{background:#1b2236;}
-
-/* 토글 한 줄 */
 .toggle-row{display:flex;gap:8px;flex-wrap:wrap;margin:8px 0 12px}
-
-/* 테이블 */
 .tablewrap{overflow:auto;background:#0f1526;border-radius:14px;padding:0 6px 6px 0;max-height:50vh}
-:root.light .tablewrap{background:#eef1f7}
 table{border-collapse:collapse;width:auto;min-width:100%}
-thead th{position:sticky;top:0;z-index:2;background:#12203a;white-space:nowrap}
-:root.light thead th{background:#d6deec}
+thead th{position:sticky;top:0;background:#12203a}
 th,td{padding:6px 8px;border-bottom:1px solid var(--line);text-align:right;font-size:13px}
 th:first-child,td:first-child{text-align:center;padding-left:0;padding-right:4px}
-
-/* 차트 */
 .charts{margin-top:14px;display:grid;grid-template-columns:1fr;gap:12px}
 .chart{background:#0f1526;border-radius:12px;padding:10px}
-:root.light .chart{background:#eef1f7}
 .chart h3{margin:0 0 8px;font-size:15px;color:var(--mut);font-weight:700}
 .canvas-wrap{position:relative;width:100%;height:200px}
 .canvas-wrap canvas{position:absolute;left:0;top:0;width:100%;height:100%}
-
-/* 상태/하단 */
 #raw{white-space:pre-line;font-size:12px;color:var(--mut)}
 #foot{display:flex;align-items:center;justify-content:space-between;gap:8px;font-size:12px;color:var(--mut);margin-top:4px}
-#foot > span{white-space:nowrap}
-
-/* Wi-Fi 모달 */
 .modal-backdrop{position:fixed;inset:0;background:rgba(0,0,0,.45);display:none;align-items:center;justify-content:center;z-index:999}
 .modal{background:var(--card);border-radius:14px;padding:16px;min-width:280px;max-width:90vw;box-shadow:0 10px 30px rgba(0,0,0,.35)}
 .modal h3{margin:0 0 10px}
@@ -68,14 +42,7 @@ th:first-child,td:first-child{text-align:center;padding-left:0;padding-right:4px
 .modal input{background:transparent;border:1px solid var(--btn-border);color:var(--txt);padding:10px;border-radius:10px;outline:none}
 .modal .acts{display:flex;gap:8px;justify-content:flex-end;margin-top:12px}
 .modal .acts .btn{min-width:auto;padding:10px 12px}
-/* ★ 모달 표시 버그 수정 */
 .modal-backdrop.show{display:flex}
-
-@media (max-width:480px){
-  h1{font-size:22px}
-  .btn{min-width:96px;font-size:15px;padding:12px}
-  .canvas-wrap{height:180px}
-}
 </style></head>
 <body>
 <div class="wrap"><div class="card">
@@ -109,22 +76,20 @@ th:first-child,td:first-child{text-align:center;padding-left:0;padding-right:4px
     <button class="btn toggle" id="toggleGraph">📊 그래프 보기</button>
   </div>
 
-  <div id="tableSection" class="collapsible">
-    <div class="tablewrap"><table>
+  <div id="tableSection" class="tablewrap">
+    <table>
       <thead><tr>
         <th>시간</th><th>AHT&nbsp;°C</th><th>AHT&nbsp;%</th>
         <th>SCD&nbsp;°C</th><th>SCD&nbsp;%</th><th>CO₂</th><th>LED</th>
       </tr></thead>
       <tbody id="logtbl"></tbody>
-    </table></div>
+    </table>
   </div>
 
-  <div id="graphSection" class="collapsible">
-    <div class="charts">
-      <div class="chart"><h3>온도 (°C) — 최근 60분</h3><div class="canvas-wrap"><canvas id="chTemp"></canvas></div></div>
-      <div class="chart"><h3>습도 (%) — 최근 60분</h3><div class="canvas-wrap"><canvas id="chHum"></canvas></div></div>
-      <div class="chart"><h3>CO₂ (ppm) — 최근 60분</h3><div class="canvas-wrap"><canvas id="chCO2"></canvas></div></div>
-    </div>
+  <div class="charts">
+    <div class="chart"><h3>온도 (°C) — 최근 60분</h3><div class="canvas-wrap"><canvas id="chTemp"></canvas></div></div>
+    <div class="chart"><h3>습도 (%) — 최근 60분</h3><div class="canvas-wrap"><canvas id="chHum"></canvas></div></div>
+    <div class="chart"><h3>CO₂ (ppm) — 최근 60분</h3><div class="canvas-wrap"><canvas id="chCO2"></canvas></div></div>
   </div>
 
   <hr>
@@ -146,8 +111,8 @@ th:first-child,td:first-child{text-align:center;padding-left:0;padding-right:4px
     </div>
     <div id="wifiHint" class="mut">현재 상태 확인 중…</div>
     <div class="acts">
-      <button class="btn dim" id="wifiCancel">취소</button>
-      <button class="btn on"  id="wifiConnect">연결</button>
+      <button class="btn" id="wifiCancel">취소</button>
+      <button class="btn on" id="wifiConnect">연결</button>
     </div>
   </div>
 </div>
@@ -155,27 +120,13 @@ th:first-child,td:first-child{text-align:center;padding-left:0;padding-right:4px
 <script>
 const $=s=>document.querySelector(s);
 
-/* Theme */
-const themeToggle=$('#themeToggle');
-function applyTheme(t){document.documentElement.classList.toggle('light', t==='light');themeToggle.textContent=(t==='light')?'☀️':'🌙';}
-applyTheme(localStorage.getItem('theme')||'dark');
-themeToggle.onclick=()=>{const t=document.documentElement.classList.contains('light')?'dark':'light';applyTheme(t);localStorage.setItem('theme',t);};
-
-/* Toggle */
-function setToggle(btn,sec,show,hide){const sync=()=>btn.textContent=sec.classList.contains('open')?hide:show;btn.onclick=()=>{sec.classList.toggle('open');sync();};sync();}
-setToggle($('#toggleTable'),$('#tableSection'),'📋 테이블 보기','📋 테이블 숨기기');
-setToggle($('#toggleGraph'),$('#graphSection'),'📊 그래프 보기','📊 그래프 숨기기');
-
-/* API (동일 출처) */
-const EP={ status:'/api/status', ledOn:'/api/led/on', ledOff:'/api/led/off', wifiStatus:'/api/wifi/status', wifiConnect:'/api/wifi/connect' };
+// ===== 빠른 상태 =====
 async function getJSON(u,opt={}){ const r=await fetch(u,{...opt,cache:'no-store'}); if(!r.ok) throw new Error(r.status); return r.json(); }
-
-/* 상태/LED */
 function syncButtons(led){const on=$('#on'),off=$('#off');on.classList.remove('active','dim');off.classList.remove('active','dim');if(led){on.classList.add('active');off.classList.add('dim');}else{off.classList.add('active');on.classList.add('dim');}}
 function tick(){ const d=new Date(),p=n=>String(n).padStart(2,'0'); $('#ts').textContent=`${d.getFullYear()}-${p(d.getMonth()+1)}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}:${p(d.getSeconds())}`; }
 async function refreshFast(){
   try{
-    const s=await getJSON(EP.status);
+    const s=await getJSON('/api/status');
     const led=(s.led=='1'||s.led===1||s.led==='on'||s.led===true);
     $('#aht_t').textContent = s.aht_t!=null ? Number(s.aht_t).toFixed(1)+' °C' : '--.- °C';
     $('#aht_h').textContent = s.aht_h!=null ? Math.round(Number(s.aht_h))+' %' : '-- %';
@@ -188,31 +139,53 @@ async function refreshFast(){
   }catch{ $('#banner').textContent='통신 오류'; }
   tick();
 }
-$('#on').onclick  = async()=>{ try{ await fetch(EP.ledOn); }catch{} refreshFast(); };
-$('#off').onclick = async()=>{ try{ await fetch(EP.ledOff);}catch{} refreshFast(); };
+$('#on').onclick  = async()=>{ try{ await fetch('/api/led/on'); }catch{} refreshFast(); };
+$('#off').onclick = async()=>{ try{ await fetch('/api/led/off');}catch{} refreshFast(); };
 setInterval(refreshFast,3000); setInterval(tick,1000); refreshFast();
 
-/* Wi-Fi 모달 */
+// ===== Wi-Fi 모달 + 결과 폴링 =====
 const mBackdrop=$('#wifiModal'); const wifiHint=$('#wifiHint');
-$('#btnWifi').onclick=()=>{ mBackdrop.classList.add('show'); getJSON(EP.wifiStatus).then(s=>{ wifiHint.textContent=s.connected?`연결됨: ${s.ssid} (${s.ip})`:'미연결'; }).catch(()=>wifiHint.textContent='상태 조회 실패'); };
-$('#wifiCancel').onclick=()=>mBackdrop.classList.remove('show');
+let wifiPollTimer=null;
+
+$('#btnWifi').onclick=async()=>{
+  mBackdrop.classList.add('show');
+  try{
+    const s=await getJSON('/api/wifi/status');
+    wifiHint.textContent = s.connected ? `연결됨: ${s.ssid} (${s.ip})` : '미연결';
+  }catch{ wifiHint.textContent='상태 조회 실패'; }
+};
+$('#wifiCancel').onclick=()=>{ mBackdrop.classList.remove('show'); if(wifiPollTimer){clearInterval(wifiPollTimer); wifiPollTimer=null;} };
+
 $('#wifiConnect').onclick=async()=>{
   const ssid=$('#inSsid').value.trim(), password=$('#inPw').value;
   if(!ssid){ wifiHint.textContent='SSID를 입력하세요.'; return; }
-  wifiHint.textContent='연결 시도 중…';
+  wifiHint.textContent='연결 작업 시작…';
   try{
-    const r=await fetch(EP.wifiConnect,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({ssid,password})});
-    const j=await r.json();
-    if(j.ok){
-      wifiHint.textContent=`연결됨: ${j.ssid} (${j.ip})`;
-      refreshFast();
-      setTimeout(()=>mBackdrop.classList.remove('show'),800);
-    }else{
-      const st=j.status_text||j.status, rs=j.reason_text||j.reason||'';
-      wifiHint.textContent=`연결 실패: ${st}${rs?` / ${rs}`:''}. SSID/비밀번호 또는 2.4GHz 여부를 확인하세요.`;
-    }
+    await fetch('/api/wifi/connect',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({ssid,password})});
+    // 결과 폴링
+    if(wifiPollTimer){ clearInterval(wifiPollTimer); }
+    wifiPollTimer = setInterval(async()=>{
+      try{
+        const j = await getJSON('/api/wifi/connect/result');
+        if(j.running){
+          wifiHint.textContent = `연결 중… (시도 ${j.attempt+1}/2) 상태=${j.status_text}${j.reason_text?`/${j.reason_text}`:''}`;
+        }else{
+          if(j.ok){
+            wifiHint.textContent=`연결됨: ${j.ssid} (${j.ip})`;
+            refreshFast();
+            clearInterval(wifiPollTimer); wifiPollTimer=null;
+            setTimeout(()=>mBackdrop.classList.remove('show'),800);
+          }else{
+            wifiHint.textContent=`연결 실패: ${j.status_text}${j.reason_text?` / ${j.reason_text}`:''}`;
+            clearInterval(wifiPollTimer); wifiPollTimer=null;
+          }
+        }
+      }catch(e){
+        wifiHint.textContent='결과 조회 오류';
+      }
+    }, 600);
   }catch(e){
-    wifiHint.textContent='연결 오류: 장치와 통신 불가';
+    wifiHint.textContent='연결 요청 오류';
   }
 };
 </script>
