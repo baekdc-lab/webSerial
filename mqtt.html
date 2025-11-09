@@ -4,14 +4,8 @@
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>ESP32 센서 대시보드</title>
 <style>
-:root{
-  --bg:#0b1020;--card:#131a2b;--txt:#e8eefc;--mut:#9fb2d7;--line:#22314f;
-  --btn-bg:#1b2b4a;--btn-border:#2c3e63;
-}
-:root.light{
-  --bg:#f5f7fa;--card:#ffffff;--txt:#0b1020;--mut:#5a6b8a;--line:#ccd4e0;
-  --btn-bg:#e4e8ef;--btn-border:#b0bacb;
-}
+:root{ --bg:#0b1020;--card:#131a2b;--txt:#e8eefc;--mut:#9fb2d7;--line:#22314f;--btn-bg:#1b2b4a;--btn-border:#2c3e63; }
+:root.light{ --bg:#f5f7fa;--card:#ffffff;--txt:#0b1020;--mut:#5a6b8a;--line:#ccd4e0;--btn-bg:#e4e8ef;--btn-border:#b0bacb; }
 *{box-sizing:border-box}
 body{margin:0;background:var(--bg);color:var(--txt);font:16px/1.5 system-ui,Segoe UI,Roboto,Apple SD Gothic Neo,sans-serif;transition:background .3s,color .3s}
 .wrap{max-width:900px;margin:20px auto;padding:0 12px}
@@ -45,7 +39,7 @@ hr{border:0;border-top:1px solid var(--line);margin:14px 0;transition:border-col
 .toggle-row{display:flex;gap:8px;flex-wrap:wrap;margin:8px 0 12px}
 
 /* 테이블 */
-.tablewrap{overflow:auto;background:#0f1526;border-radius:14px;padding:0 6px 6px 0;max-height:50vh;transition:background .3s}
+.tablewrap{overflow:auto;background:#0f1526;border-radius:14px;padding:0 6px 6px 0;max-height:50vh}
 :root.light .tablewrap{background:#eef1f7}
 table{border-collapse:collapse;width:auto;min-width:100%}
 thead th{position:sticky;top:0;z-index:2;background:#12203a;white-space:nowrap}
@@ -74,7 +68,7 @@ th:first-child,td:first-child{text-align:center;padding-left:0;padding-right:4px
 .modal input{background:transparent;border:1px solid var(--btn-border);color:var(--txt);padding:10px;border-radius:10px;outline:none}
 .modal .acts{display:flex;gap:8px;justify-content:flex-end;margin-top:12px}
 .modal .acts .btn{min-width:auto;padding:10px 12px}
-/* ★ 여기 수정 */
+/* ★ 모달 표시 버그 수정 */
 .modal-backdrop.show{display:flex}
 
 @media (max-width:480px){
@@ -160,7 +154,6 @@ th:first-child,td:first-child{text-align:center;padding-left:0;padding-right:4px
 
 <script>
 const $=s=>document.querySelector(s);
-const BASE=""; // 동일 출처
 
 /* Theme */
 const themeToggle=$('#themeToggle');
@@ -173,9 +166,9 @@ function setToggle(btn,sec,show,hide){const sync=()=>btn.textContent=sec.classLi
 setToggle($('#toggleTable'),$('#tableSection'),'📋 테이블 보기','📋 테이블 숨기기');
 setToggle($('#toggleGraph'),$('#graphSection'),'📊 그래프 보기','📊 그래프 숨기기');
 
-/* API */
+/* API (동일 출처) */
 const EP={ status:'/api/status', ledOn:'/api/led/on', ledOff:'/api/led/off', wifiStatus:'/api/wifi/status', wifiConnect:'/api/wifi/connect' };
-async function getJSON(u,opt={}){ const r=await fetch(BASE+u,{...opt,cache:'no-store'}); if(!r.ok) throw new Error(r.status); return r.json(); }
+async function getJSON(u,opt={}){ const r=await fetch(u,{...opt,cache:'no-store'}); if(!r.ok) throw new Error(r.status); return r.json(); }
 
 /* 상태/LED */
 function syncButtons(led){const on=$('#on'),off=$('#off');on.classList.remove('active','dim');off.classList.remove('active','dim');if(led){on.classList.add('active');off.classList.add('dim');}else{off.classList.add('active');on.classList.add('dim');}}
@@ -195,8 +188,8 @@ async function refreshFast(){
   }catch{ $('#banner').textContent='통신 오류'; }
   tick();
 }
-$('#on').onclick = async()=>{ try{ await fetch(BASE+EP.ledOn); }catch{} refreshFast(); };
-$('#off').onclick= async()=>{ try{ await fetch(BASE+EP.ledOff);}catch{} refreshFast(); };
+$('#on').onclick  = async()=>{ try{ await fetch(EP.ledOn); }catch{} refreshFast(); };
+$('#off').onclick = async()=>{ try{ await fetch(EP.ledOff);}catch{} refreshFast(); };
 setInterval(refreshFast,3000); setInterval(tick,1000); refreshFast();
 
 /* Wi-Fi 모달 */
@@ -208,11 +201,19 @@ $('#wifiConnect').onclick=async()=>{
   if(!ssid){ wifiHint.textContent='SSID를 입력하세요.'; return; }
   wifiHint.textContent='연결 시도 중…';
   try{
-    const r=await fetch(BASE+EP.wifiConnect,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({ssid,password})});
+    const r=await fetch(EP.wifiConnect,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({ssid,password})});
     const j=await r.json();
-    if(j.ok){ wifiHint.textContent=`연결됨: ${j.ssid} (${j.ip})`; refreshFast(); setTimeout(()=>mBackdrop.classList.remove('show'),800); }
-    else    { wifiHint.textContent='연결 실패. SSID/비밀번호 확인'; }
-  }catch{ wifiHint.textContent='연결 오류'; }
+    if(j.ok){
+      wifiHint.textContent=`연결됨: ${j.ssid} (${j.ip})`;
+      refreshFast();
+      setTimeout(()=>mBackdrop.classList.remove('show'),800);
+    }else{
+      const st=j.status_text||j.status, rs=j.reason_text||j.reason||'';
+      wifiHint.textContent=`연결 실패: ${st}${rs?` / ${rs}`:''}. SSID/비밀번호 또는 2.4GHz 여부를 확인하세요.`;
+    }
+  }catch(e){
+    wifiHint.textContent='연결 오류: 장치와 통신 불가';
+  }
 };
 </script>
 </body></html>
