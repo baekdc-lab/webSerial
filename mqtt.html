@@ -26,16 +26,14 @@ hr{border:0;border-top:1px solid var(--line);margin:14px 0}
 :root.light .tile{background:#eef1f7}
 .v{font-size:22px;font-weight:800;margin-top:4px}
 
-/* LED 영역 */
+/* LED 영역 (요청 스타일) */
 .led{display:flex;align-items:flex-start;gap:10px;margin-top:12px;flex-wrap:wrap}
 .btn{border:0;color:#fff;padding:12px 16px;border-radius:16px;cursor:pointer;font-weight:900;min-width:96px;font-size:15px;transition:all .15s}
-.btn.on{background:#2d6bff}      /* 비활성일 때 기본 파랑 */
-.btn.off{background:#2b3348}     /* 비활성일 때 기본 회색 */
-.btn.active{background:#12d67a !important} /* ★ Active면 항상 Green */
-.btn.dim{opacity:.52}
+.btn.on,.btn.off{background:#1f273b;}            /* 비활성: 동일한 짙은 회색 */
+.btn.active{background:#12d67a !important;}      /* 활성: 선명한 그린 */
 .led-status{font-size:13px;color:var(--mut);position:relative;top:6px;margin-left:6px;white-space:nowrap}
 
-/* 토글 버튼 (색 강조 없이 변함 없는 스타일) */
+/* 보기/숨기기 토글 버튼 */
 .btn.toggle{background:var(--btn-bg);border:1px solid var(--btn-border);color:var(--txt);min-width:140px;border-radius:12px}
 
 /* 접힘 섹션 */
@@ -206,12 +204,12 @@ const tableBody=$('logtbl'); const secTable=$('tableSection'), secGraph=$('graph
 /* ===== 캐시 먼저 표시 ===== */
 (function(){const raw=localStorage.getItem(LS_LAST_STATUS);if(!raw)return;try{applyStatus(JSON.parse(raw),true)}catch(_){}})();
 
-/* ===== 상태 & LED 버튼 상태 ===== */
+/* ===== LED 버튼 상태 반영 (활성=초록, 비활성=짙은 회색) ===== */
 function syncLedButtons(isOn){
   const bon=$('on'), boff=$('off');
-  bon.classList.remove('active','dim'); boff.classList.remove('active','dim');
-  if(isOn){ bon.classList.add('active'); boff.classList.add('dim'); }
-  else    { boff.classList.add('active'); bon.classList.add('dim'); }
+  bon.classList.remove('active'); boff.classList.remove('active');
+  if(isOn){ bon.classList.add('active'); }
+  else    { boff.classList.add('active'); }
 }
 function applyStatus(s,fromCache=false){
   const aT=Number(s.aht_t), aH=Number(s.aht_h), sT=Number(s.scd_t), sH=Number(s.scd_h), co=Number(s.co2);
@@ -269,7 +267,7 @@ function renderAllCharts(){
   drawChart(document.getElementById('chCO2'),  [co2],        ['#65a9ff']);
 }
 
-/* ===== 토글(각 버튼 독립적으로 보기↔숨기기) ===== */
+/* ===== 보기/숨기기 토글 ===== */
 const btnTable=$('toggleTable'), btnGraph=$('toggleGraph');
 btnTable.onclick=()=>{const open=secTable.classList.toggle('open');btnTable.textContent=open?'📋 테이블 숨기기':'📋 테이블 보기'; if(open && !tableBody.children.length) loadHistory60();};
 btnGraph.onclick=()=>{const open=secGraph.classList.toggle('open');btnGraph.textContent=open?'📊 그래프 숨기기':'📊 그래프 보기'; if(open) renderAllCharts();};
@@ -281,7 +279,7 @@ $('btnWifiSave').onclick=async()=>{const ss=$('inSsid').value.trim();const pw=$(
 
 /* ===== 부트 ===== */
 (async()=>{
-  tsTxt.textContent=fmtNow(); setInterval(()=>{tsTxt.textContent=fmtNow();},1000);
+  document.getElementById('ts').textContent=fmtNow(); setInterval(()=>{document.getElementById('ts').textContent=fmtNow();},1000);
   if(!BASE || !(await tryStatus(BASE))) await discoverBase();
   await refreshFast(); setInterval(refreshFast, fastMs);
   try{const list=await fetchFirstJson(EP.history60); histBuf=list.map(normalizeRec).slice(-60);}catch(_){}
