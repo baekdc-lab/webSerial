@@ -27,17 +27,16 @@ hr{border:0;border-top:1px solid var(--line);margin:14px 0}
 .v{font-size:22px;font-weight:800;margin-top:4px}
 
 /* LED 영역 */
-.led{display:flex;align-items:flex-start;gap:12px;margin-top:12px;flex-wrap:wrap}
-.btn{border:0;color:#fff;padding:12px 18px;border-radius:16px;cursor:pointer;font-weight:900;min-width:110px;font-size:15px;transition:all .15s}
-.btn.on{background:#2d6bff}      /* 기본 ON 색 (비활성일 때) */
-.btn.off{background:#2b3348}     /* 기본 OFF 색 (비활성일 때) */
-.btn.active{background:#12d67a !important} /* ★ Active면 무조건 그린 */
+.led{display:flex;align-items:flex-start;gap:10px;margin-top:12px;flex-wrap:wrap}
+.btn{border:0;color:#fff;padding:12px 16px;border-radius:16px;cursor:pointer;font-weight:900;min-width:96px;font-size:15px;transition:all .15s}
+.btn.on{background:#2d6bff}      /* 비활성일 때 기본 파랑 */
+.btn.off{background:#2b3348}     /* 비활성일 때 기본 회색 */
+.btn.active{background:#12d67a !important} /* ★ Active면 항상 Green */
 .btn.dim{opacity:.52}
-.led-status{font-size:13px;color:var(--mut);position:relative;top:4px;margin-left:4px;white-space:nowrap}
+.led-status{font-size:13px;color:var(--mut);position:relative;top:6px;margin-left:6px;white-space:nowrap}
 
-/* 토글 버튼 */
+/* 토글 버튼 (색 강조 없이 변함 없는 스타일) */
 .btn.toggle{background:var(--btn-bg);border:1px solid var(--btn-border);color:var(--txt);min-width:140px;border-radius:12px}
-.btn.toggle.active{box-shadow:0 0 0 2px rgba(255,255,255,.08) inset;filter:brightness(1.05)}
 
 /* 접힘 섹션 */
 .collapsible{display:none;max-height:0;overflow:hidden;opacity:0;transition:max-height .35s ease,opacity .25s ease}
@@ -64,7 +63,7 @@ th:nth-child(6){width:72px} th:nth-child(7){width:52px}
 .legend{display:flex;gap:16px;align-items:center;margin:0 0 8px 2px;color:var(--mut);font-weight:700}
 .legend .sw{display:inline-block;width:14px;height:6px;border-radius:3px;margin-right:6px}
 
-/* 하단 줄 */
+/* 하단 */
 #foot{display:flex;align-items:center;justify-content:space-between;gap:8px;font-size:12px;color:var(--mut);margin-top:4px}
 #foot > span{white-space:nowrap}
 
@@ -250,41 +249,15 @@ function drawChart(cv, series, colors){
   const padL=42,padR=12,padT=8,padB=24,plotW=W-padL-padR,plotH=H-padT-padB;
   const light=document.documentElement.classList.contains('light');
   ctx.clearRect(0,0,W,H); ctx.fillStyle=light?'#eef1f7':'#0f1526'; ctx.fillRect(0,0,W,H);
-
-  /* 그리드 + X라벨 */
   ctx.strokeStyle=light?'#ccd4e0':'#22314f'; ctx.beginPath();
   for(let g=0;g<=4;g++){const y=padT+plotH*g/4;ctx.moveTo(padL,y);ctx.lineTo(padL+plotW,y);}
-  for(let m=0;m<=60;m+=10){const x=padL+plotW*(m/60);ctx.moveTo(x,padT);ctx.lineTo(x,padT+plotH);}
-  ctx.stroke();
-
-  ctx.fillStyle=light?'#5a6b8a':'#9fb2d7'; ctx.font='12px system-ui,Segoe UI,Roboto,Apple SD Gothic Neo,sans-serif';
-  ctx.textAlign='center'; ctx.textBaseline='top';
+  for(let m=0;m<=60;m+=10){const x=padL+plotW*(m/60);ctx.moveTo(x,padT);ctx.lineTo(x,padT+plotH);} ctx.stroke();
+  ctx.fillStyle=light?'#5a6b8a':'#9fb2d7'; ctx.font='12px system-ui,Segoe UI,Roboto,Apple SD Gothic Neo,sans-serif'; ctx.textAlign='center'; ctx.textBaseline='top';
   for(let m=0;m<=60;m+=10){const x=padL+plotW*(m/60);ctx.fillText((60-m)==0?'지금':`-${60-m}m`,x,padT+plotH+6);}
-
-  /* Y 스케일 */
-  const vals=[]; series.forEach(s=>s.forEach(v=>{if(Number.isFinite(v))vals.push(v);}));
-  let vmin=Math.min(...(vals.length?vals:[0])), vmax=Math.max(...(vals.length?vals:[1]));
-  if(vmax===vmin){vmax=vmin+1;} const pad=(vmax-vmin)*0.08; vmin-=pad; vmax+=pad;
-
-  ctx.textAlign='right'; ctx.textBaseline='middle';
-  for(let g=0;g<=4;g++){const y=padT+plotH*g/4, val=vmax-(vmax-vmin)*g/4;
-    ctx.fillText(val.toFixed((vmax-vmin)<10?1:0), padL-6, y);
-  }
-
+  const vals=[]; series.forEach(s=>s.forEach(v=>{if(Number.isFinite(v))vals.push(v);})); let vmin=Math.min(...(vals.length?vals:[0])), vmax=Math.max(...(vals.length?vals:[1])); if(vmax===vmin){vmax=vmin+1;} const pad=(vmax-vmin)*0.08; vmin-=pad; vmax+=pad;
+  ctx.textAlign='right'; ctx.textBaseline='middle'; for(let g=0;g<=4;g++){const y=padT+plotH*g/4, val=vmax-(vmax-vmin)*g/4; ctx.fillText(val.toFixed((vmax-vmin)<10?1:0), padL-6, y);}
   const xAt=i=>padL+plotW*(i/59), yAt=v=>padT+((vmax-v)/(vmax-vmin))*plotH;
-
-  /* 시리즈 라인 (점선 없음) */
-  series.forEach((arr,idx)=>{
-    const color=colors[idx];
-    ctx.beginPath(); ctx.lineWidth=2; ctx.strokeStyle=color;
-    let moved=false, N=arr.length;
-    for(let i=0;i<60;i++){
-      const j=i-(60-N); const v=(j>=0&&j<N)?arr[j]:NaN; const x=xAt(i);
-      if(Number.isFinite(v)){const y=yAt(v); if(!moved){ctx.moveTo(x,y);moved=true;} else ctx.lineTo(x,y);}
-      else moved=false;
-    }
-    ctx.stroke();
-  });
+  series.forEach((arr,idx)=>{const color=colors[idx]; ctx.beginPath(); ctx.lineWidth=2; ctx.strokeStyle=color; let moved=false,N=arr.length; for(let i=0;i<60;i++){const j=i-(60-N); const v=(j>=0&&j<N)?arr[j]:NaN; const x=xAt(i); if(Number.isFinite(v)){const y=yAt(v); if(!moved){ctx.moveTo(x,y);moved=true;} else ctx.lineTo(x,y);} else moved=false;} ctx.stroke(); });
 }
 function renderAllCharts(){
   if(!secGraph.classList.contains('open')) return;
@@ -296,11 +269,10 @@ function renderAllCharts(){
   drawChart(document.getElementById('chCO2'),  [co2],        ['#65a9ff']);
 }
 
-/* ===== 토글(상호 배타) ===== */
+/* ===== 토글(각 버튼 독립적으로 보기↔숨기기) ===== */
 const btnTable=$('toggleTable'), btnGraph=$('toggleGraph');
-function openTable(){secGraph.classList.remove('open');btnGraph.classList.remove('active');secTable.classList.add('open');btnTable.classList.add('active');if(!tableBody.children.length) loadHistory60();}
-function openGraph(){secTable.classList.remove('open');btnTable.classList.remove('active');secGraph.classList.add('open');btnGraph.classList.add('active');renderAllCharts();}
-btnTable.onclick=openTable; btnGraph.onclick=openGraph;
+btnTable.onclick=()=>{const open=secTable.classList.toggle('open');btnTable.textContent=open?'📋 테이블 숨기기':'📋 테이블 보기'; if(open && !tableBody.children.length) loadHistory60();};
+btnGraph.onclick=()=>{const open=secGraph.classList.toggle('open');btnGraph.textContent=open?'📊 그래프 숨기기':'📊 그래프 보기'; if(open) renderAllCharts();};
 
 /* ===== Wi-Fi 모달 ===== */
 const bd=$('wifiBackdrop'); const openModal=()=>{ $('wifiHint').textContent=''; bd.style.display='grid'; }; const closeModal=()=>{ bd.style.display='none'; };
