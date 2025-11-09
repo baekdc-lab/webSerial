@@ -5,60 +5,55 @@
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>ESP32 센서 대시보드</title>
 <style>
-:root{
-  --bg:#0b1020;--card:#131a2b;--txt:#e8eefc;--mut:#9fb2d7;--line:#22314f;
-  --btn-bg:#1b2b4a;--btn-border:#2c3e63;
-  --ok:#28d07f;--bad:#ff6b6b;
-}
-:root.light{
-  --bg:#f5f7fa;--card:#ffffff;--txt:#0b1020;--mut:#5a6b8a;--line:#ccd4e0;
-  --btn-bg:#e4e8ef;--btn-border:#b0bacb;
-}
+:root{--bg:#0b1020;--card:#131a2b;--txt:#e8eefc;--mut:#9fb2d7;--line:#22314f;--btn-bg:#1b2b4a;--btn-border:#2c3e63;--ok:#28d07f;--bad:#ff6b6b}
+:root.light{--bg:#f5f7fa;--card:#ffffff;--txt:#0b1020;--mut:#5a6b8a;--line:#ccd4e0;--btn-bg:#e4e8ef;--btn-border:#b0bacb}
 *{box-sizing:border-box}
 body{margin:0;background:var(--bg);color:var(--txt);font:16px/1.5 system-ui,Segoe UI,Roboto,Apple SD Gothic Neo,sans-serif;transition:background .3s,color .3s}
 .wrap{max-width:900px;margin:20px auto;padding:0 12px}
-.card{background:var(--card);border-radius:16px;padding:16px;box-shadow:0 10px 30px rgba(0,0,0,.25);transition:background .3s}
+.card{background:var(--card);border-radius:16px;padding:16px;box-shadow:0 10px 30px rgba(0,0,0,.25)}
 h1{margin:0 0 8px;font-size:26px;font-weight:800;display:flex;justify-content:space-between;align-items:center}
 .mut{color:var(--mut);margin:0 0 12px}
 .status{margin-top:8px;color:var(--mut);font-size:14px;white-space:pre-line}
-hr{border:0;border-top:1px solid var(--line);margin:14px 0;transition:border-color .3s}
+hr{border:0;border-top:1px solid var(--line);margin:14px 0}
 
-/* Theme toggle */
-.theme-toggle{cursor:pointer;font-size:22px;user-select:none;transition:transform .2s}
-.theme-toggle:hover{transform:scale(1.15)}
+/* 상단 우측 */
+.header-actions{display:flex;gap:8px;align-items:center}
+.badge{padding:8px 12px;border-radius:999px;border:1px solid var(--line);font-weight:700;font-size:14px}
+.badge.ok{color:#fff;background:rgba(40,208,127,.14);border-color:rgba(40,208,127,.35)}
+.badge.bad{color:#fff;background:rgba(255,107,107,.14);border-color:rgba(255,107,107,.35)}
+.smallbtn{background:var(--btn-bg);border:1px solid var(--btn-border);color:var(--txt);padding:8px 12px;border-radius:10px;cursor:pointer;font-weight:700}
+.theme-toggle{cursor:pointer;font-size:22px;user-select:none}
 
-/* KPI Tiles */
+/* KPI */
 .grid{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:12px;margin-top:6px}
-.tile{background:#0f1526;border-radius:12px;padding:12px;text-align:center;min-height:76px;transition:background .3s}
+.tile{background:#0f1526;border-radius:12px;padding:12px;text-align:center;min-height:76px}
 :root.light .tile{background:#eef1f7}
 .v{font-size:22px;font-weight:800;margin-top:4px}
 
-/* LED 버튼 */
+/* LED */
 .led{display:flex;align-items:center;gap:12px;margin-top:12px;flex-wrap:wrap}
-.btn{border:0;color:#fff;padding:12px 14px;border-radius:12px;cursor:pointer;font-weight:800;min-width:98px;font-size:15px;transition:all .2s}
-.btn.on{background:#2d6bff;} .btn.off{background:#32405e;} .btn.active{background:#00cc66;} .btn.dim{background:#1b2236;}
+.btn{border:0;color:#fff;padding:12px 14px;border-radius:12px;cursor:pointer;font-weight:800;min-width:98px;font-size:15px}
+.btn.on{background:#2d6bff}.btn.off{background:#32405e}
+
+/* 접힘 */
+.collapsible{max-height:0;overflow:hidden;transition:max-height .45s ease,opacity .3s ease;opacity:0}
+.collapsible.open{max-height:2000px;opacity:1}
 .btn.toggle{background:var(--btn-bg);border:1px solid var(--btn-border);color:var(--txt);min-width:120px}
 
-/* 숨김/펼침 애니메이션 */
-.collapsible{max-height:0;overflow:hidden;transition:max-height .5s ease,padding .3s ease,opacity .3s ease;opacity:0}
-.collapsible.open{max-height:2000px;padding-top:6px;opacity:1}
-
-/* ===== 테이블 ===== */
-.tablewrap{overflow:auto;background:#0f1526;border-radius:14px;padding:0 6px 6px 0;max-height:50vh;transition:background .3s}
+/* 테이블 */
+.tablewrap{overflow:auto;background:#0f1526;border-radius:14px;padding:0 6px 6px 0;max-height:50vh}
 :root.light .tablewrap{background:#eef1f7}
-table{border-collapse:collapse;width:auto;min-width:100%;table-layout:auto}
-thead th{position:sticky;top:0;z-index:2;background:#12203a;white-space:nowrap;transition:background .3s}
+table{border-collapse:collapse;width:auto;min-width:100%}
+thead th{position:sticky;top:0;background:#12203a}
 :root.light thead th{background:#d6deec}
-th,td{padding:6px 8px;border-bottom:1px solid var(--line);text-align:right;font-size:13px;line-height:1.5;transition:border-color .3s}
-th:first-child,td:first-child{text-align:center;padding-left:0;padding-right:4px}
-th:nth-child(1){width:54px}
-th:nth-child(2),th:nth-child(3),th:nth-child(4),th:nth-child(5){width:63px}
-th:nth-child(6){width:72px}
-th:nth-child(7){width:52px}
+th,td{padding:6px 8px;border-bottom:1px solid var(--line);text-align:right;font-size:13px}
+th:first-child,td:first-child{text-align:center}
+th:nth-child(1){width:54px} th:nth-child(2),th:nth-child(3),th:nth-child(4),th:nth-child(5){width:63px}
+th:nth-child(6){width:72px} th:nth-child(7){width:52px}
 
-/* ===== Charts ===== */
+/* 차트 캔버스 */
 .charts{margin-top:14px;display:grid;grid-template-columns:1fr;gap:12px}
-.chart{background:#0f1526;border-radius:12px;padding:10px;transition:background .3s}
+.chart{background:#0f1526;border-radius:12px;padding:10px}
 :root.light .chart{background:#eef1f7}
 .chart h3{margin:0 0 8px;font-size:15px;color:var(--mut);font-weight:700}
 .canvas-wrap{position:relative;width:100%;height:200px}
@@ -68,14 +63,7 @@ th:nth-child(7){width:52px}
 #foot{display:flex;align-items:center;justify-content:space-between;gap:8px;font-size:12px;color:var(--mut);margin-top:4px}
 #foot > span{white-space:nowrap}
 
-/* ===== 상단 우측: 연결 배지 & 버튼 ===== */
-.header-actions{display:flex;gap:8px;align-items:center}
-.badge{padding:8px 12px;border-radius:999px;border:1px solid var(--line);font-weight:700;font-size:14px}
-.badge.ok{color:#fff;background:rgba(40,208,127,.14);border-color:rgba(40,208,127,.35)}
-.badge.bad{color:#fff;background:rgba(255,107,107,.14);border-color:rgba(255,107,107,.35)}
-.smallbtn{background:var(--btn-bg);border:1px solid var(--btn-border);color:var(--txt);padding:8px 12px;border-radius:10px;cursor:pointer;font-weight:700}
-
-/* ===== Wi-Fi 모달 ===== */
+/* Wi-Fi 모달 */
 .backdrop{position:fixed;inset:0;background:rgba(0,0,0,.5);backdrop-filter:blur(2px);display:none;place-items:center;z-index:50}
 .modal{width:min(92vw,520px);background:var(--card);border:1px solid var(--line);border-radius:16px;padding:16px}
 .row{display:flex;flex-direction:column;gap:6px;margin-bottom:10px}
@@ -146,7 +134,7 @@ input[type="text"],input[type="password"]{width:100%;padding:10px 12px;backgroun
   </div>
 
   <hr>
-  <div class="status" id="raw">—</div>
+  <!-- ↓↓↓ '---' 영역 제거됨. RSSI/시계만 남김 -->
   <div id="foot"><span id="rssi">RSSI: -- [dBm]</span><span id="ts">—</span></div>
 </div></div>
 
@@ -155,39 +143,18 @@ input[type="text"],input[type="password"]{width:100%;padding:10px 12px;backgroun
   <div class="modal">
     <h3 style="margin:0 0 8px 0">Wi-Fi 설정</h3>
     <p class="mut small" style="margin-top:0">SSID와 비밀번호를 입력하면 장치가 잠시 후 해당 AP로 재연결합니다.</p>
-    <div class="row">
-      <label class="small mut">SSID</label>
-      <input id="inSsid" type="text" placeholder="예: Backhome">
-    </div>
-    <div class="row">
-      <label class="small mut">비밀번호</label>
-      <input id="inPass" type="password" placeholder="비밀번호">
-    </div>
+    <div class="row"><label class="small mut">SSID</label><input id="inSsid" type="text" placeholder="예: Backhome"></div>
+    <div class="row"><label class="small mut">비밀번호</label><input id="inPass" type="password" placeholder="비밀번호"></div>
     <div id="wifiHint" class="hint"></div>
-    <div class="btns">
-      <button id="btnWifiCancel" class="smallbtn">취소</button>
-      <button id="btnWifiSave" class="smallbtn">저장 & 적용</button>
-    </div>
+    <div class="btns"><button id="btnWifiCancel" class="smallbtn">취소</button><button id="btnWifiSave" class="smallbtn">저장 & 적용</button></div>
   </div>
 </div>
 
 <script>
-/* ===== 상수/키 ===== */
-const LS_LAST_STATUS = 'esp32_last_status';
-const LS_BASE       = 'base';
-const fastMs = 3000, maxRows = 60;
-
-/* ===== Theme ===== */
-const themeToggle=document.getElementById('themeToggle');
-function applyTheme(t){
-  document.documentElement.classList.toggle('light', t==='light');
-  themeToggle.textContent = (t==='light')?'☀️':'🌙';
-}
-applyTheme(localStorage.getItem('theme')||'dark');
-themeToggle.onclick=()=>{const t=document.documentElement.classList.contains('light')?'dark':'light';applyTheme(t);localStorage.setItem('theme',t);};
-
-/* ===== BASE (엔드포인트) ===== */
-const BASE = (()=>{ const saved=localStorage.getItem(LS_BASE); return saved?saved.replace(/\/$/,''):'http://esp32.local'; })();
+/* ===== 기본 설정 ===== */
+const LS_LAST_STATUS='esp32_last_status', LS_BASE='base';
+const BASE = (localStorage.getItem(LS_BASE)||'http://esp32.local').replace(/\/$/,'');
+const fastMs=3000, maxRows=60;
 const EP = {
   status : ['/api/status','/status','/readings','/get','/api/readings'],
   history60: ['/api/history?limit=60','/history?limit=60','/api/history','/history','/logs'],
@@ -204,58 +171,51 @@ const aht_t=$('aht_t'), aht_h=$('aht_h'), scd_t=$('scd_t'), scd_h=$('scd_h'), sc
 const ledTxt=$('led'), rssiTxt=$('rssi'), tsTxt=$('ts');
 const tableBody=$('logtbl');
 
-/* ===== 표시/배지 ===== */
-function setConnBadge(ok){
-  connBadge.textContent = ok ? '연결됨' : '오프라인';
-  connBadge.classList.toggle('ok', ok);
-  connBadge.classList.toggle('bad', !ok);
-}
+/* ===== 테마 ===== */
+const themeToggle=$('themeToggle');
+function applyTheme(t){document.documentElement.classList.toggle('light',t==='light');themeToggle.textContent=(t==='light')?'☀️':'🌙'}
+applyTheme(localStorage.getItem('theme')||'dark');
+themeToggle.onclick=()=>{const t=document.documentElement.classList.contains('light')?'dark':'light';applyTheme(t);localStorage.setItem('theme',t);};
+
+/* ===== 배지/표시 유틸 ===== */
+function setConnBadge(ok){connBadge.textContent=ok?'연결됨':'오프라인';connBadge.classList.toggle('ok',ok);connBadge.classList.toggle('bad',!ok);}
 function fmtNow(){const d=new Date();const p=n=>String(n).padStart(2,'0');return `${d.getFullYear()}-${p(d.getMonth()+1)}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}:${p(d.getSeconds())}`;}
 function tickClock(){ tsTxt.textContent = fmtNow(); }
 
-/* ===== 캐시 즉시 표시 ===== */
+/* ===== 캐시 우선 렌더(깜빡임 방지) ===== */
 function renderFromCache(){
-  const raw = localStorage.getItem(LS_LAST_STATUS);
-  if(!raw) return false;
-  try{
-    const s = JSON.parse(raw);
-    applyStatus(s, /*fromCache*/true);
-    return true;
-  }catch(_){ return false; }
+  const raw=localStorage.getItem(LS_LAST_STATUS);
+  if(!raw) return;
+  try{ applyStatus(JSON.parse(raw), true); }catch(_){}
 }
 
 /* ===== 상태 적용 ===== */
 function applyStatus(s, fromCache=false){
-  const aT = Number(s.aht_t), aH = Number(s.aht_h);
-  const sT = Number(s.scd_t), sH = Number(s.scd_h);
-  const co2= Number(s.co2);
-  const led = (s.led=='1'||s.led===1||s.led===true||s.led==='on');
+  const aT=Number(s.aht_t), aH=Number(s.aht_h), sT=Number(s.scd_t), sH=Number(s.scd_h), co=Number(s.co2);
+  const led=(s.led=='1'||s.led===1||s.led===true||s.led==='on');
+  if(!Number.isNaN(aT)) aht_t.textContent=aT.toFixed(1)+' °C';
+  if(!Number.isNaN(aH)) aht_h.textContent=Math.round(aH)+' %';
+  if(!Number.isNaN(sT)) scd_t.textContent=sT.toFixed(1)+' °C';
+  if(!Number.isNaN(sH)) scd_h.textContent=Math.round(sH)+' %';
+  if(!Number.isNaN(co) && co>0) scd_c.textContent=co+' ppm';
+  ledTxt.textContent='LED: '+(led?'ON':'OFF');
+  if(typeof s.rssi!=='undefined') rssiTxt.textContent=`RSSI: ${s.rssi} [dBm]`;
+  setConnBadge(true); tickClock();
+  if(!fromCache) localStorage.setItem(LS_LAST_STATUS, JSON.stringify(s));
+}
 
-  if (!Number.isNaN(aT)) aht_t.textContent = aT.toFixed(1)+' °C';
-  if (!Number.isNaN(aH)) aht_h.textContent = Math.round(aH)+' %';
-  if (!Number.isNaN(sT)) scd_t.textContent = sT.toFixed(1)+' °C';
-  if (!Number.isNaN(sH)) scd_h.textContent = Math.round(sH)+' %';
-  if (!Number.isNaN(co2) && co2>0) scd_c.textContent = co2+' ppm';
-  ledTxt.textContent = 'LED: '+(led?'ON':'OFF');
-
-  if (typeof s.rssi !== 'undefined') rssiTxt.textContent = `RSSI: ${s.rssi} [dBm]`;
-  tickClock();
-
-  // 캐시 저장(실시간 응답에서만)
-  if (!fromCache) localStorage.setItem(LS_LAST_STATUS, JSON.stringify(s));
-
-  banner.textContent='AHT25/SCD42 연결 OK';
-  setConnBadge(true);
+/* ===== 폴링 ===== */
+async function refreshFast(){
+  try{ const s=await fetchFirstJson(EP.status); applyStatus(s,false); }
+  catch(e){ banner.textContent='통신 오류: '+e.message; setConnBadge(false); tickClock(); }
 }
 
 /* ===== 히스토리 ===== */
 function addRowTop(obj, ts){
   const d=ts?new Date(ts):new Date();
-  const hh=String(d.getHours()).padStart(2,'0');
-  const mm=String(d.getMinutes()).padStart(2,'0');
+  const hh=String(d.getHours()).padStart(2,'0'), mm=String(d.getMinutes()).padStart(2,'0');
   const tr=document.createElement('tr');
-  tr.innerHTML=`
-    <td>${hh}:${mm}</td>
+  tr.innerHTML=`<td>${hh}:${mm}</td>
     <td>${Number(obj.aht_t).toFixed(1)}</td>
     <td>${Math.round(Number(obj.aht_h))}</td>
     <td>${Number(obj.scd_t).toFixed(1)}</td>
@@ -268,8 +228,7 @@ function addRowTop(obj, ts){
 async function loadHistory60(){
   try{
     const list=await fetchFirstJson(EP.history60);
-    tableBody.innerHTML='';
-    const now=Date.now();
+    tableBody.innerHTML=''; const now=Date.now();
     for(const it of list){
       const ts=it.timestamp?new Date(it.timestamp):new Date(now-(it.age||0)*60000);
       addRowTop({
@@ -284,55 +243,49 @@ async function loadHistory60(){
   }catch(_){}
 }
 
-/* ===== 폴링 ===== */
-async function refreshFast(){
-  try{
-    const s=await fetchFirstJson(EP.status);
-    applyStatus(s, /*fromCache*/false);
-  }catch(e){
-    banner.textContent='통신 오류: '+e.message;
-    setConnBadge(false);
-    tickClock();
-  }
-}
+/* ===== LED 제어 (POST) ===== */
+$('on').onclick  = async()=>{try{await fetch(BASE+EP.ledOn[0], {method:'POST',cache:'no-store'});}catch(_){ } refreshFast();};
+$('off').onclick = async()=>{try{await fetch(BASE+EP.ledOff[0],{method:'POST',cache:'no-store'});}catch(_){ } refreshFast();};
 
-/* ===== LED 제어 ===== */
-document.getElementById('on').onclick  = async()=>{try{await fetch(BASE+EP.ledOn[0], {cache:'no-store'});}catch(_){ } refreshFast();};
-document.getElementById('off').onclick = async()=>{try{await fetch(BASE+EP.ledOff[0],{cache:'no-store'});}catch(_){ } refreshFast();};
+/* ===== 테이블/그래프 토글 + 차트 ===== */
+const secTable=$('tableSection'), secGraph=$('graphSection');
+$('toggleTable').onclick=()=>{secTable.classList.toggle('open');};
+$('toggleGraph').onclick=()=>{secGraph.classList.toggle('open'); if(secGraph.classList.contains('open')) renderAllCharts();};
+
+let histBuf=[]; // 차트용 버퍼
+function normalizeRec(o){return{aht_t:Number(o.aht_t??o.aht_temp??o.temp)||NaN,aht_h:Number(o.aht_h??o.aht_hum??o.hum)||NaN,scd_t:Number(o.scd_t??o.scd_temp??o.st)||NaN,scd_h:Number(o.scd_h??o.scd_hum??o.sh)||NaN,co2:Number(o.co2??o.scd_co2??o.ppm)||NaN};}
+async function refreshLogOne(){try{const one=await fetchFirstJson(EP.history1);const it=Array.isArray(one)?one[0]:one;if(!it)return;addRowTop(it);histBuf.push(normalizeRec(it));if(histBuf.length>60)histBuf.shift();renderAllCharts();}catch(_){}}
+
+/* 미니 차트 엔진 */
+const dpr=()=>window.devicePixelRatio||1;
+function prepCanvas(cv){const r=cv.getBoundingClientRect();cv.width=Math.floor(r.width*dpr());cv.height=Math.floor(r.height*dpr());const ctx=cv.getContext('2d');ctx.setTransform(dpr(),0,0,dpr(),0,0);return ctx;}
+function drawChart(cv, series, opts={}){const ctx=prepCanvas(cv);const W=cv.clientWidth,H=cv.clientHeight;const padL=38,padR=10,padT=opts.legend?32:10,padB=26,plotW=W-padL-padR,plotH=H-padT-padB;const light=document.documentElement.classList.contains('light');ctx.clearRect(0,0,W,H);ctx.fillStyle=light?'#eef1f7':'#0f1526';ctx.fillRect(0,0,W,H);if(opts.legend){ctx.font='12px system-ui,Segoe UI,Roboto,Apple SD Gothic Neo,sans-serif';ctx.textAlign='left';ctx.textBaseline='middle';let x=padL,y=16;const cols=['#7aa0ff','#ff9a7a','#7affb0'];series.forEach((s,i)=>{ctx.fillStyle=s.color||cols[i%cols.length];ctx.fillRect(x,y-3,14,6);ctx.fillStyle=light?'#5a6b8a':'#9fb2d7';ctx.fillText('  '+s.name,x+18,y);x+=18+ctx.measureText('  '+s.name).width+14;});}
+ctx.strokeStyle=light?'#ccd4e0':'#22314f';ctx.beginPath();for(let g=0;g<=4;g++){const y=padT+plotH*g/4;ctx.moveTo(padL,y);ctx.lineTo(padL+plotW,y);}for(let m=0;m<=60;m+=10){const x=padL+plotW*(m/60);ctx.moveTo(x,padT);ctx.lineTo(x,padT+plotH);}ctx.stroke();ctx.fillStyle=light?'#5a6b8a':'#9fb2d7';ctx.font='12px system-ui,Segoe UI,Roboto,Apple SD Gothic Neo,sans-serif';ctx.textAlign='center';ctx.textBaseline='top';for(let m=0;m<=60;m+=10){const x=padL+plotW*(m/60);ctx.fillText((60-m)==0?'지금':`-${60-m}m`,x,padT+plotH+6);}const vals=[];series.forEach(s=>s.data.forEach(v=>{if(Number.isFinite(v))vals.push(v);}));let vmin=Math.min(...(vals.length?vals:[0])),vmax=Math.max(...(vals.length?vals:[1]));if(vmax===vmin){vmax=vmin+1;}const pad=(vmax-vmin)*0.1;vmin-=pad;vmax+=pad;ctx.textAlign='right';ctx.textBaseline='middle';for(let g=0;g<=4;g++){const y=padT+plotH*g/4,val=vmax-(vmax-vmin)*g/4;ctx.fillText(val.toFixed((vmax-vmin)<10?1:0),padL-6,y);}function xAt(i){return padL+plotW*(i/59)}function yAt(v){return padT+((vmax-v)/ (vmax-vmin))*plotH}const cols=['#7aa0ff','#ff9a7a','#7affb0'];series.forEach((s,i)=>{ctx.beginPath();ctx.lineWidth=2;ctx.strokeStyle=s.color||cols[i%cols.length];let moved=false;const N=s.data.length;for(let i=0;i<60;i++){const idx=i-(60-N);const v=(idx>=0&&idx<N)?s.data[idx]:NaN;const x=xAt(i);if(Number.isFinite(v)){const y=yAt(v);if(!moved){ctx.moveTo(x,y);moved=true;}else ctx.lineTo(x,y);}else moved=false;}ctx.stroke();});}
+function renderAllCharts(){if(!secGraph.classList.contains('open'))return;const aht_t=histBuf.map(r=>r.aht_t),scd_t=histBuf.map(r=>r.scd_t),aht_h=histBuf.map(r=>r.aht_h),scd_h=histBuf.map(r=>r.scd_h),co2=histBuf.map(r=>r.co2);drawChart(document.getElementById('chTemp'),[{name:'AHT25 온도',data:aht_t,color:'#7aa0ff'},{name:'SCD42 온도',data:scd_t,color:'#ff9a7a'}],{legend:true});drawChart(document.getElementById('chHum'),[{name:'AHT25 습도',data:aht_h,color:'#7aa0ff'},{name:'SCD42 습도',data:scd_h,color:'#ff9a7a'}],{legend:true});drawChart(document.getElementById('chCO2'),[{name:'SCD42 CO₂',data:co2,color:'#7aa0ff'}],{legend:true});}
 
 /* ===== Wi-Fi 모달 ===== */
-const bd=document.getElementById('wifiBackdrop');
-const openModal = ()=>{ document.getElementById('wifiHint').textContent=''; bd.style.display='grid'; };
-const closeModal= ()=>{ bd.style.display='none'; };
-document.getElementById('btnWifi').onclick=openModal;
-document.getElementById('btnWifiCancel').onclick=closeModal;
-document.getElementById('btnWifiSave').onclick=async ()=>{
-  const ss=document.getElementById('inSsid').value.trim();
-  const pw=document.getElementById('inPass').value;
-  const hint=document.getElementById('wifiHint');
-  if(!ss||!pw){ hint.textContent='SSID/비밀번호를 입력하세요.'; return; }
-  try{
-    const r=await fetch(BASE+'/api/wifi',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({ssid:ss,pass:pw})});
-    if(!r.ok) throw new Error('HTTP '+r.status);
-    hint.textContent='전송 완료. 장치가 재연결 중입니다…';
-    setTimeout(closeModal, 900);
-  }catch(e){ hint.textContent='전송 실패: '+e.message; }
-};
+const bd=$('wifiBackdrop'); const openModal=()=>{ $('wifiHint').textContent=''; bd.style.display='grid'; }; const closeModal=()=>{ bd.style.display='none'; };
+$('btnWifi').onclick=openModal; $('btnWifiCancel').onclick=closeModal;
+$('btnWifiSave').onclick=async()=>{const ss=document.getElementById('inSsid').value.trim();const pw=document.getElementById('inPass').value;const hint=$('wifiHint');if(!ss||!pw){hint.textContent='SSID/비밀번호를 입력하세요.';return;}try{const r=await fetch(BASE+'/api/wifi',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({ssid:ss,pass:pw})});if(!r.ok)throw new Error('HTTP '+r.status);hint.textContent='전송 완료. 장치가 재연결 중입니다…';setTimeout(closeModal,900);}catch(e){hint.textContent='전송 실패: '+e.message;}};
 
 /* ===== 부트 ===== */
 (async()=>{
-  // 1) 캐시 먼저 즉시 렌더(깜빡임 방지)
+  // 캐시 먼저 표시 → 깜빡임 제거
   renderFromCache();
-
-  // 2) 최신값 요청
+  // 최신값
   await refreshFast();
-
-  // 3) 테이블/그래프용 히스토리(초기 1회)
-  loadHistory60();
-
-  // 4) 주기 폴링
+  // 히스토리 초기 로드 + 차트 버퍼 채우기
+  await loadHistory60();
+  // 차트용 버퍼 추출
+  try{
+    const list=await fetchFirstJson(EP.history60);
+    histBuf=list.map(normalizeRec); if(histBuf.length>60) histBuf=histBuf.slice(-60);
+  }catch(_){}
+  // 주기 폴링
   setInterval(refreshFast, fastMs);
-  setInterval(()=>{ tsTxt.textContent = fmtNow(); }, 1000);
+  setInterval(()=>{ tsTxt.textContent=fmtNow(); }, 1000);
+  // 1분마다 행 1개 추가 갱신
+  setInterval(refreshLogOne, 60000);
 })();
 </script>
 </body>
