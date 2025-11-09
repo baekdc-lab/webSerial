@@ -15,7 +15,7 @@ h1{margin:0 0 8px;font-size:26px;font-weight:800;display:flex;justify-content:sp
 .mut{color:var(--mut);margin:0 0 12px}
 hr{border:0;border-top:1px solid var(--line);margin:14px 0}
 
-/* 상단 우측: Wi-Fi, 테마 */
+/* 상단 우측 */
 .header-actions{display:flex;gap:8px;align-items:center}
 .smallbtn{background:var(--btn-bg);border:1px solid var(--btn-border);color:var(--txt);padding:8px 12px;border-radius:10px;cursor:pointer;font-weight:700}
 .theme-toggle{cursor:pointer;font-size:22px;user-select:none}
@@ -26,21 +26,20 @@ hr{border:0;border-top:1px solid var(--line);margin:14px 0}
 :root.light .tile{background:#eef1f7}
 .v{font-size:22px;font-weight:800;margin-top:4px}
 
-/* LED 버튼 - 원본 톤 */
-.led{display:flex;align-items:center;gap:12px;margin-top:12px;flex-wrap:wrap}
+/* LED 영역 */
+.led{display:flex;align-items:flex-start;gap:12px;margin-top:12px;flex-wrap:wrap}
 .btn{border:0;color:#fff;padding:12px 18px;border-radius:16px;cursor:pointer;font-weight:900;min-width:110px;font-size:15px;transition:all .15s}
-.btn.on{background:#2d6bff}
-.btn.off{background:#2b3348}
-.btn.active.on{background:#12d67a}
-.btn.active.off{background:#3a4763}
+.btn.on{background:#2d6bff}      /* 기본 ON 색 (비활성일 때) */
+.btn.off{background:#2b3348}     /* 기본 OFF 색 (비활성일 때) */
+.btn.active{background:#12d67a !important} /* ★ Active면 무조건 그린 */
 .btn.dim{opacity:.52}
-#led{margin-left:6px}
+.led-status{font-size:13px;color:var(--mut);position:relative;top:4px;margin-left:4px;white-space:nowrap}
 
 /* 토글 버튼 */
 .btn.toggle{background:var(--btn-bg);border:1px solid var(--btn-border);color:var(--txt);min-width:140px;border-radius:12px}
 .btn.toggle.active{box-shadow:0 0 0 2px rgba(255,255,255,.08) inset;filter:brightness(1.05)}
 
-/* 접힘 섹션 (명확한 show/hide) */
+/* 접힘 섹션 */
 .collapsible{display:none;max-height:0;overflow:hidden;opacity:0;transition:max-height .35s ease,opacity .25s ease}
 .collapsible.open{display:block;max-height:2000px;opacity:1}
 
@@ -65,7 +64,7 @@ th:nth-child(6){width:72px} th:nth-child(7){width:52px}
 .legend{display:flex;gap:16px;align-items:center;margin:0 0 8px 2px;color:var(--mut);font-weight:700}
 .legend .sw{display:inline-block;width:14px;height:6px;border-radius:3px;margin-right:6px}
 
-/* 하단 한 줄 */
+/* 하단 줄 */
 #foot{display:flex;align-items:center;justify-content:space-between;gap:8px;font-size:12px;color:var(--mut);margin-top:4px}
 #foot > span{white-space:nowrap}
 
@@ -101,7 +100,7 @@ input[type="text"],input[type="password"]{width:100%;padding:10px 12px;backgroun
   <div class="led">
     <button id="on"  class="btn on">LED ON</button>
     <button id="off" class="btn off">LED OFF</button>
-    <div id="led" class="mut">LED: -</div>
+    <div id="led" class="led-status">LED: -</div>
   </div>
 
   <hr>
@@ -208,12 +207,12 @@ const tableBody=$('logtbl'); const secTable=$('tableSection'), secGraph=$('graph
 /* ===== 캐시 먼저 표시 ===== */
 (function(){const raw=localStorage.getItem(LS_LAST_STATUS);if(!raw)return;try{applyStatus(JSON.parse(raw),true)}catch(_){}})();
 
-/* ===== 상태 & LED 버튼 색 ===== */
+/* ===== 상태 & LED 버튼 상태 ===== */
 function syncLedButtons(isOn){
   const bon=$('on'), boff=$('off');
   bon.classList.remove('active','dim'); boff.classList.remove('active','dim');
-  if(isOn){ bon.classList.add('active','on'); boff.classList.add('dim','off'); }
-  else    { boff.classList.add('active','off'); bon.classList.add('dim','on'); }
+  if(isOn){ bon.classList.add('active'); boff.classList.add('dim'); }
+  else    { boff.classList.add('active'); bon.classList.add('dim'); }
 }
 function applyStatus(s,fromCache=false){
   const aT=Number(s.aht_t), aH=Number(s.aht_h), sT=Number(s.scd_t), sH=Number(s.scd_h), co=Number(s.co2);
@@ -274,7 +273,7 @@ function drawChart(cv, series, colors){
 
   const xAt=i=>padL+plotW*(i/59), yAt=v=>padT+((vmax-v)/(vmax-vmin))*plotH;
 
-  /* 시리즈 라인(레퍼런스 점선 제거됨) */
+  /* 시리즈 라인 (점선 없음) */
   series.forEach((arr,idx)=>{
     const color=colors[idx];
     ctx.beginPath(); ctx.lineWidth=2; ctx.strokeStyle=color;
@@ -297,7 +296,7 @@ function renderAllCharts(){
   drawChart(document.getElementById('chCO2'),  [co2],        ['#65a9ff']);
 }
 
-/* ===== 토글 제어(상호 배타) ===== */
+/* ===== 토글(상호 배타) ===== */
 const btnTable=$('toggleTable'), btnGraph=$('toggleGraph');
 function openTable(){secGraph.classList.remove('open');btnGraph.classList.remove('active');secTable.classList.add('open');btnTable.classList.add('active');if(!tableBody.children.length) loadHistory60();}
 function openGraph(){secTable.classList.remove('open');btnTable.classList.remove('active');secGraph.classList.add('open');btnGraph.classList.add('active');renderAllCharts();}
