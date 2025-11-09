@@ -31,15 +31,18 @@ hr{border:0;border-top:1px solid var(--line);margin:14px 0}
 .btn{border:0;color:#fff;padding:12px 18px;border-radius:16px;cursor:pointer;font-weight:900;min-width:110px;font-size:15px;transition:all .15s}
 .btn.on{background:#2d6bff}
 .btn.off{background:#2b3348}
-.btn.active.on{background:#12d67a}      /* 활성 ON = 그린 */
-.btn.active.off{background:#3a4763}     /* 활성 OFF = 진회색 */
+.btn.active.on{background:#12d67a}
+.btn.active.off{background:#3a4763}
 .btn.dim{opacity:.52}
 #led{margin-left:6px}
 
-/* 접힘 */
-.collapsible{max-height:0;overflow:hidden;transition:max-height .45s ease,opacity .3s ease;opacity:0}
-.collapsible.open{max-height:2000px;opacity:1}
-.btn.toggle{background:var(--btn-bg);border:1px solid var(--btn-border);color:var(--txt);min-width:120px;border-radius:12px}
+/* 토글 버튼 */
+.btn.toggle{background:var(--btn-bg);border:1px solid var(--btn-border);color:var(--txt);min-width:140px;border-radius:12px}
+.btn.toggle.active{box-shadow:0 0 0 2px rgba(255,255,255,.08) inset;filter:brightness(1.05)}
+
+/* 접힘 섹션 (명확한 show/hide) */
+.collapsible{display:none;max-height:0;overflow:hidden;opacity:0;transition:max-height .35s ease,opacity .25s ease}
+.collapsible.open{display:block;max-height:2000px;opacity:1}
 
 /* 테이블 */
 .tablewrap{overflow:auto;background:#0f1526;border-radius:14px;padding:0 6px 6px 0;max-height:50vh}
@@ -102,7 +105,7 @@ input[type="text"],input[type="password"]{width:100%;padding:10px 12px;backgroun
   </div>
 
   <hr>
-  <div class="toggle-row">
+  <div class="toggle-row" style="display:flex;gap:12px;flex-wrap:wrap">
     <button class="btn toggle" id="toggleTable">📋 테이블 보기</button>
     <button class="btn toggle" id="toggleGraph">📊 그래프 보기</button>
   </div>
@@ -237,7 +240,7 @@ async function loadHistory60(){try{const list=await fetchFirstJson(EP.history60)
 $('on').onclick=async()=>{try{const js=await sendFirst(EP.ledOn);applyStatus(js,false)}catch(_){ }};
 $('off').onclick=async()=>{try{const js=await sendFirst(EP.ledOff);applyStatus(js,false)}catch(_){ }};
 
-/* ===== 그래프 ===== */
+/* ===== 차트 ===== */
 let histBuf=[];
 function normalizeRec(o){return{aht_t:Number(o.aht_t??o.aht_temp??o.temp)||NaN,aht_h:Number(o.aht_h??o.aht_hum??o.hum)||NaN,scd_t:Number(o.scd_t??o.scd_temp??o.st)||NaN,scd_h:Number(o.scd_h??o.scd_hum??o.sh)||NaN,co2:Number(o.co2??o.scd_co2??o.ppm)||NaN};}
 async function refreshLogOne(){try{const one=await fetchFirstJson(EP.history1);const it=Array.isArray(one)?one[0]:one;if(!it)return;addRowTop(it);histBuf.push(normalizeRec(it));if(histBuf.length>60)histBuf.shift();renderAllCharts();}catch(_){ }}
@@ -248,43 +251,15 @@ function drawChart(cv, series, colors){
   const padL=42,padR=12,padT=8,padB=24,plotW=W-padL-padR,plotH=H-padT-padB;
   const light=document.documentElement.classList.contains('light');
   ctx.clearRect(0,0,W,H); ctx.fillStyle=light?'#eef1f7':'#0f1526'; ctx.fillRect(0,0,W,H);
-
-  // 그리드 + X라벨
   ctx.strokeStyle=light?'#ccd4e0':'#22314f'; ctx.beginPath();
-  for(let g=0;g<=4;g++){const y=padT+plotH*g/4;ctx.moveTo(padL,y);ctx.lineTo(padL+plotW,y);} // H-grid
-  for(let m=0;m<=60;m+=10){const x=padL+plotW*(m/60);ctx.moveTo(x,padT);ctx.lineTo(x,padT+plotH);} // V-grid
-  ctx.stroke();
-  ctx.fillStyle=light?'#5a6b8a':'#9fb2d7'; ctx.font='12px system-ui,Segoe UI,Roboto,Apple SD Gothic Neo,sans-serif';
-  ctx.textAlign='center'; ctx.textBaseline='top';
+  for(let g=0;g<=4;g++){const y=padT+plotH*g/4;ctx.moveTo(padL,y);ctx.lineTo(padL+plotW,y);}
+  for(let m=0;m<=60;m+=10){const x=padL+plotW*(m/60);ctx.moveTo(x,padT);ctx.lineTo(x,padT+plotH);} ctx.stroke();
+  ctx.fillStyle=light?'#5a6b8a':'#9fb2d7'; ctx.font='12px system-ui,Segoe UI,Roboto,Apple SD Gothic Neo,sans-serif'; ctx.textAlign='center'; ctx.textBaseline='top';
   for(let m=0;m<=60;m+=10){const x=padL+plotW*(m/60);ctx.fillText((60-m)==0?'지금':`-${60-m}m`,x,padT+plotH+6);}
-
-  // Y스케일
-  const vals=[]; series.forEach(s=>s.forEach(v=>{if(Number.isFinite(v))vals.push(v);}));
-  let vmin=Math.min(...(vals.length?vals:[0])), vmax=Math.max(...(vals.length?vals:[1]));
-  if(vmax===vmin){vmax=vmin+1;} const pad=(vmax-vmin)*0.08; vmin-=pad; vmax+=pad;
-  ctx.textAlign='right'; ctx.textBaseline='middle';
-  for(let g=0;g<=4;g++){const y=padT+plotH*g/4, val=vmax-(vmax-vmin)*g/4; ctx.fillText(val.toFixed((vmax-vmin)<10?1:0), padL-6, y);}
-
+  const vals=[]; series.forEach(s=>s.forEach(v=>{if(Number.isFinite(v))vals.push(v);})); let vmin=Math.min(...(vals.length?vals:[0])), vmax=Math.max(...(vals.length?vals:[1])); if(vmax===vmin){vmax=vmin+1;} const pad=(vmax-vmin)*0.08; vmin-=pad; vmax+=pad;
+  ctx.textAlign='right'; ctx.textBaseline='middle'; for(let g=0;g<=4;g++){const y=padT+plotH*g/4, val=vmax-(vmax-vmin)*g/4; ctx.fillText(val.toFixed((vmax-vmin)<10?1:0), padL-6, y);}
   const xAt=i=>padL+plotW*(i/59), yAt=v=>padT+((vmax-v)/(vmax-vmin))*plotH;
-
-  // 각 시리즈 선 + 마지막값 수평 레퍼런스 라인
-  series.forEach((arr,idx)=>{
-    const color=colors[idx];
-    // 라인
-    ctx.beginPath(); ctx.lineWidth=2; ctx.strokeStyle=color;
-    let moved=false, N=arr.length;
-    for(let i=0;i<60;i++){
-      const j=i-(60-N); const v=(j>=0&&j<N)?arr[j]:NaN; const x=xAt(i);
-      if(Number.isFinite(v)){const y=yAt(v); if(!moved){ctx.moveTo(x,y);moved=true;} else ctx.lineTo(x,y);}
-      else moved=false;
-    }
-    ctx.stroke();
-    // 레퍼런스(마지막 유효값)
-    const last=[...arr].reverse().find(v=>Number.isFinite(v));
-    if(Number.isFinite(last)){
-      const y=yAt(last); ctx.beginPath(); ctx.setLineDash([6,6]); ctx.lineWidth=1.5; ctx.strokeStyle=color; ctx.moveTo(padL,y); ctx.lineTo(padL+plotW,y); ctx.stroke(); ctx.setLineDash([]);
-    }
-  });
+  series.forEach((arr,idx)=>{const color=colors[idx]; ctx.beginPath(); ctx.lineWidth=2; ctx.strokeStyle=color; let moved=false,N=arr.length; for(let i=0;i<60;i++){const j=i-(60-N); const v=(j>=0&&j<N)?arr[j]:NaN; const x=xAt(i); if(Number.isFinite(v)){const y=yAt(v); if(!moved){ctx.moveTo(x,y);moved=true;} else ctx.lineTo(x,y);} else moved=false;} ctx.stroke(); const last=[...arr].reverse().find(v=>Number.isFinite(v)); if(Number.isFinite(last)){const y=yAt(last); ctx.beginPath(); ctx.setLineDash([6,6]); ctx.lineWidth=1.5; ctx.strokeStyle=color; ctx.moveTo(padL,y); ctx.lineTo(padL+plotW,y); ctx.stroke(); ctx.setLineDash([]);} });
 }
 function renderAllCharts(){
   if(!secGraph.classList.contains('open')) return;
@@ -295,6 +270,12 @@ function renderAllCharts(){
   drawChart(document.getElementById('chHum'),  [ahtH, scdH], ['#65a9ff','#ff9a7a']);
   drawChart(document.getElementById('chCO2'),  [co2],        ['#65a9ff']);
 }
+
+/* ===== 토글 제어(상호 배타) ===== */
+const btnTable=$('toggleTable'), btnGraph=$('toggleGraph');
+function openTable(){secGraph.classList.remove('open');btnGraph.classList.remove('active');secTable.classList.add('open');btnTable.classList.add('active');if(!tableBody.children.length) loadHistory60();}
+function openGraph(){secTable.classList.remove('open');btnTable.classList.remove('active');secGraph.classList.add('open');btnGraph.classList.add('active');renderAllCharts();}
+btnTable.onclick=openTable; btnGraph.onclick=openGraph;
 
 /* ===== Wi-Fi 모달 ===== */
 const bd=$('wifiBackdrop'); const openModal=()=>{ $('wifiHint').textContent=''; bd.style.display='grid'; }; const closeModal=()=>{ bd.style.display='none'; };
@@ -309,11 +290,14 @@ $('btnWifiSave').onclick=async()=>{const ss=$('inSsid').value.trim();const pw=$(
   // 베이스 자동탐색
   if(!BASE || !(await tryStatus(BASE))) await discoverBase();
 
+  // 초기 상태 로드 + 폴링
   await refreshFast();
   setInterval(refreshFast, fastMs);
-  await loadHistory60();
+
+  // 초기 히스토리 버퍼 & 테이블/그래프 필요시
   try{const list=await fetchFirstJson(EP.history60); histBuf=list.map(normalizeRec).slice(-60);}catch(_){}
-  setInterval(refreshLogOne, 60000);
+  // 기본은 닫힘. 원하시면 아래 한 줄로 기본 오픈 선택
+  // openGraph(); // 기본으로 그래프 열기
 })();
 </script>
 </body>
