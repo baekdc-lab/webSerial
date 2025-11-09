@@ -1,62 +1,151 @@
-<!-- 기존 헤더 오른쪽에 'Wi-Fi' 버튼과 모달을 소폭 추가 -->
-<!-- …(head, style 기존 그대로)… -->
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ESP32 센서 대시보드</title>
 
-<!-- [추가된 스타일] -->
 <style>
-/* …기존 스타일 유지… */
-.top-actions{display:flex;gap:8px;align-items:center}
-.btn.wifi{background:var(--btn-bg);border:1px solid var(--btn-border);color:var(--txt);padding:8px 10px;border-radius:10px;cursor:pointer;font-weight:800}
+:root{
+  --bg:#0b0d11; --card:#12151b; --txt:#e9edf3;
+  --mut:#9aa3ad; --btn-bg:#171b22; --btn-border:#2a3140; --ok:#19c37d; --dim:#3a4252;
+}
+*{box-sizing:border-box}
+html,body{margin:0;padding:0;background:var(--bg);color:var(--txt);font-family:system-ui,apple sd gothic neo,Segoe UI,Roboto,Arial,HelveticaNeue,Helvetica,sans-serif}
+.wrap{max-width:980px;margin:24px auto;padding:0 16px}
+.card{background:var(--card);border-radius:16px;padding:18px 18px 20px;box-shadow:0 8px 30px rgba(0,0,0,.25)}
+.mut{color:var(--mut)}
 
-/* Modal */
+.head{display:flex;align-items:center;justify-content:space-between;gap:12px}
+.actions{display:flex;align-items:center;gap:8px;flex-shrink:0}
+.theme-toggle{cursor:pointer;font-size:20px;user-select:none}
+.btn{background:var(--btn-bg);border:1px solid var(--btn-border);color:var(--txt);padding:8px 12px;border-radius:10px;cursor:pointer;font-weight:700}
+.btn.on{border-color:#1e8e5a}
+.btn.dim{opacity:.85}
+.btn.wifi{font-weight:800}
+
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:12px;margin-top:12px}
+.tile{background:#0f1217;border:1px solid #1c2230;border-radius:12px;padding:12px}
+
 .modal-backdrop{position:fixed;inset:0;background:rgba(0,0,0,.45);display:none;align-items:center;justify-content:center;z-index:999}
-.modal{background:var(--card);border-radius:14px;padding:16px;min-width:260px;max-width:90vw;box-shadow:0 10px 30px rgba(0,0,0,.35)}
+.modal{background:var(--card);border-radius:14px;padding:16px;min-width:280px;max-width:90vw;box-shadow:0 10px 30px rgba(0,0,0,.35)}
 .modal h3{margin:0 0 10px}
 .modal .row{display:flex;flex-direction:column;gap:6px;margin:8px 0}
 .modal input{background:transparent;border:1px solid var(--btn-border);color:var(--txt);padding:10px;border-radius:10px;outline:none}
 .modal .acts{display:flex;gap:8px;justify-content:flex-end;margin-top:12px}
 .modal .acts .btn{min-width:auto;padding:10px 12px}
 .modal.show{display:flex}
+
+/* 데모용 표/버튼 */
+.table{width:100%;border-collapse:collapse}
+.table th,.table td{border-bottom:1px solid #202838;padding:8px 6px;text-align:left}
+.badge{display:inline-block;padding:4px 8px;border-radius:12px;border:1px solid #263147;background:#111722}
+.badge.ok{border-color:#19533b;background:#0f1e19;color:#7fe5b9}
 </style>
+</head>
 
 <body>
-<div class="wrap"><div class="card">
-  <h1>ESP32 센서 대시보드
-    <span class="top-actions">
-      <button id="btnWifi" class="btn wifi">Wi-Fi</button>
-      <span class="theme-toggle" id="themeToggle">🌙</span>
-    </span>
-  </h1>
-  <p class="mut">AHT25(온/습) + SCD42(온/습/CO₂) · LED제어</p>
-
-  <!-- …기존 본문 그대로… -->
-
-  <!-- [Modal: Wi-Fi 연결] -->
-  <div id="wifiModal" class="modal-backdrop">
-    <div class="modal">
-      <h3>Wi-Fi 연결</h3>
-      <div class="row">
-        <label>SSID</label>
-        <input id="inSsid" placeholder="네트워크 이름">
+<div class="wrap">
+  <div class="card">
+    <div class="head">
+      <h1 style="margin:0">ESP32 센서 대시보드</h1>
+      <div class="actions">
+        <button id="btnWifi" class="btn wifi">Wi-Fi</button>
+        <span class="theme-toggle" id="themeToggle">🌙</span>
       </div>
-      <div class="row">
-        <label>비밀번호</label>
-        <input id="inPw" type="password" placeholder="비밀번호(필요 시)">
+    </div>
+
+    <p class="mut">AHT25(온/습) + SCD42(온/습/CO₂) · LED제어</p>
+
+    <div class="grid">
+      <div class="tile">
+        <h3 style="margin:0 0 8px">장치 상태</h3>
+        <table class="table">
+          <tbody id="statusBody">
+            <tr><th>Wi-Fi</th><td id="wifiState"><span class="badge">확인 중…</span></td></tr>
+            <tr><th>AHT 온도</th><td id="ahtT">-</td></tr>
+            <tr><th>AHT 습도</th><td id="ahtH">-</td></tr>
+            <tr><th>SCD 온도</th><td id="scdT">-</td></tr>
+            <tr><th>SCD 습도</th><td id="scdH">-</td></tr>
+            <tr><th>CO₂</th><td id="co2">-</td></tr>
+            <tr><th>RSSI</th><td id="rssi">-</td></tr>
+          </tbody>
+        </table>
       </div>
-      <div id="wifiHint" class="mut">현재 상태 확인 중…</div>
-      <div class="acts">
-        <button class="btn dim" id="wifiCancel">취소</button>
-        <button class="btn on"  id="wifiConnect">연결</button>
+      <div class="tile">
+        <h3 style="margin:0 0 8px">LED 제어</h3>
+        <div style="display:flex;gap:8px">
+          <button id="ledOn"  class="btn on">LED ON</button>
+          <button id="ledOff" class="btn">LED OFF</button>
+        </div>
       </div>
     </div>
   </div>
+</div>
 
-</div></div>
+<!-- Wi-Fi 연결 모달 -->
+<div id="wifiModal" class="modal-backdrop">
+  <div class="modal">
+    <h3>Wi-Fi 연결</h3>
+    <div class="row">
+      <label>SSID</label>
+      <input id="inSsid" placeholder="네트워크 이름">
+    </div>
+    <div class="row">
+      <label>비밀번호</label>
+      <input id="inPw" type="password" placeholder="비밀번호(필요 시)">
+    </div>
+    <div id="wifiHint" class="mut">현재 상태 확인 중…</div>
+    <div class="acts">
+      <button class="btn dim" id="wifiCancel">취소</button>
+      <button class="btn on"  id="wifiConnect">연결</button>
+    </div>
+  </div>
+</div>
 
 <script>
-/* ===== 기존 스크립트 상단/변수/함수는 그대로… ===== */
-/* (여기서는 Wi-Fi 모달 관련 코드만 추가합니다) */
+// ===== 기본 설정 =====
+const BASE = ""; // 같은 호스트에서 제공 시 빈 문자열
 
-// --- Wi-Fi Modal 핸들러 ---
+// 테마 토글(원 코드 느낌 유지)
+const themeToggle = document.getElementById('themeToggle');
+let dark = true;
+themeToggle.onclick = () => {
+  dark = !dark;
+  document.documentElement.style.filter = dark ? "" : "invert(1) hue-rotate(180deg)";
+  themeToggle.textContent = dark ? "🌙" : "☀️";
+};
+
+// 상태 갱신
+async function refreshFast(){
+  try{
+    const r = await fetch(BASE + '/api/status', {cache:'no-store'});
+    const j = await r.json();
+    document.getElementById('ahtT').textContent = j.aht_t?.toFixed ? j.aht_t.toFixed(1)+' °C' : j.aht_t;
+    document.getElementById('ahtH').textContent = j.aht_h?.toFixed ? j.aht_h.toFixed(1)+' %'   : j.aht_h;
+    document.getElementById('scdT').textContent = j.scd_t?.toFixed ? j.scd_t.toFixed(1)+' °C' : j.scd_t;
+    document.getElementById('scdH').textContent = j.scd_h?.toFixed ? j.scd_h.toFixed(1)+' %'   : j.scd_h;
+    document.getElementById('co2').textContent  = j.co2;
+    document.getElementById('rssi').textContent = j.rssi + ' dBm';
+  }catch(e){
+    // ignore
+  }
+  try{
+    const s = await (await fetch(BASE + '/api/wifi/status', {cache:'no-store'})).json();
+    const el = document.getElementById('wifiState');
+    el.innerHTML = s.connected
+      ? `<span class="badge ok">연결됨: ${s.ssid} (${s.ip})</span>`
+      : `<span class="badge">미연결</span>`;
+  }catch(e){}
+}
+refreshFast();
+setInterval(refreshFast, 5000);
+
+// LED
+document.getElementById('ledOn').onclick  = ()=>fetch(BASE + '/api/led/on');
+document.getElementById('ledOff').onclick = ()=>fetch(BASE + '/api/led/off');
+
+// ===== Wi-Fi 모달 =====
 const mBackdrop = document.getElementById('wifiModal');
 const btnWifi   = document.getElementById('btnWifi');
 const inSsid    = document.getElementById('inSsid');
@@ -73,11 +162,10 @@ function openWifiModal(){
       if(!s.connected && inSsid.value===''){ inSsid.focus(); }
     }).catch(_=>{ wifiHint.textContent='상태 조회 실패'; });
 }
-function closeWifiModal(){
-  mBackdrop.classList.remove('show');
-}
-btnWifi.onclick   = openWifiModal;
-btnWCancel.onclick= closeWifiModal;
+function closeWifiModal(){ mBackdrop.classList.remove('show'); }
+
+btnWifi.onclick    = openWifiModal;
+btnWCancel.onclick = closeWifiModal;
 mBackdrop.addEventListener('click', (e)=>{ if(e.target===mBackdrop) closeWifiModal(); });
 
 btnWConn.onclick = async ()=>{
@@ -94,7 +182,6 @@ btnWConn.onclick = async ()=>{
     const j = await r.json();
     if(j.ok){
       wifiHint.textContent = `연결됨: ${j.ssid} (${j.ip})`;
-      // 연결되면 센서/LED 상태 갱신
       refreshFast();
       setTimeout(closeWifiModal, 800);
     }else{
@@ -104,7 +191,6 @@ btnWConn.onclick = async ()=>{
     wifiHint.textContent = '연결 오류: ' + e.message;
   }
 };
-
-/* ===== 아래로 기존 스크립트(테마 토글/표/그래프/LED 등) 그대로 유지 ===== */
 </script>
 </body>
+</html>
