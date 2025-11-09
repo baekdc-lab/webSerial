@@ -39,9 +39,6 @@ hr{border:0;border-top:1px solid var(--line);margin:14px 0;transition:border-col
 .btn.on{background:#2d6bff;} .btn.off{background:#32405e;} .btn.active{background:#00cc66;} .btn.dim{background:#1b2236;}
 .btn.toggle{background:var(--btn-bg);border:1px solid var(--btn-border);color:var(--txt);min-width:120px}
 
-/* 토글 버튼 한 줄 */
-.toggle-row{display:flex;gap:8px;flex-wrap:wrap;margin:8px 0 12px}
-
 /* 숨김/펼침 애니메이션 */
 .collapsible{max-height:0;overflow:hidden;transition:max-height .5s ease,padding .3s ease,opacity .3s ease;opacity:0}
 .collapsible.open{max-height:2000px;padding-top:6px;opacity:1}
@@ -67,8 +64,7 @@ th:nth-child(7){width:52px}
 .canvas-wrap{position:relative;width:100%;height:200px}
 .canvas-wrap canvas{position:absolute;left:0;top:0;width:100%;height:100%}
 
-#raw{white-space:pre-line;font-size:12px;color:var(--mut)}
-/* ▼ 하단 한 줄 레이아웃 (좌: RSSI, 우: 시각) */
+/* 하단 한 줄 */
 #foot{display:flex;align-items:center;justify-content:space-between;gap:8px;font-size:12px;color:var(--mut);margin-top:4px}
 #foot > span{white-space:nowrap}
 
@@ -96,7 +92,6 @@ input[type="text"],input[type="password"]{width:100%;padding:10px 12px;backgroun
     <span class="header-actions">
       <span id="connBadge" class="badge bad">오프라인</span>
       <button id="btnWifi" class="smallbtn">Wi-Fi 설정</button>
-      <button id="btnRefresh" class="smallbtn">새로고침</button>
       <span class="theme-toggle" id="themeToggle">🌙</span>
     </span>
   </h1>
@@ -123,7 +118,6 @@ input[type="text"],input[type="password"]{width:100%;padding:10px 12px;backgroun
     <button class="btn toggle" id="toggleGraph">📊 그래프 보기</button>
   </div>
 
-  <!-- 기본 접힘 -->
   <div id="tableSection" class="collapsible">
     <div class="tablewrap">
       <table>
@@ -152,9 +146,7 @@ input[type="text"],input[type="password"]{width:100%;padding:10px 12px;backgroun
   </div>
 
   <hr>
-  <!-- 상단 2줄만 #raw에 표시 -->
   <div class="status" id="raw">—</div>
-  <!-- 하단: RSSI | 현재 시각 -->
   <div id="foot"><span id="rssi">RSSI: -- [dBm]</span><span id="ts">—</span></div>
 </div></div>
 
@@ -180,37 +172,22 @@ input[type="text"],input[type="password"]{width:100%;padding:10px 12px;backgroun
 </div>
 
 <script>
-const $=s=>document.querySelector(s);
-const fastMs=3000, maxRows=60;
+/* ===== 상수/키 ===== */
+const LS_LAST_STATUS = 'esp32_last_status';
+const LS_BASE       = 'base';
+const fastMs = 3000, maxRows = 60;
 
-/* ===== Theme toggle ===== */
-const themeToggle=$('#themeToggle');
+/* ===== Theme ===== */
+const themeToggle=document.getElementById('themeToggle');
 function applyTheme(t){
   document.documentElement.classList.toggle('light', t==='light');
-  themeToggle.textContent = (t==='light') ? '☀️' : '🌙';
-  renderAllCharts();
+  themeToggle.textContent = (t==='light')?'☀️':'🌙';
 }
 applyTheme(localStorage.getItem('theme')||'dark');
-themeToggle.onclick=()=>{const t=document.documentElement.classList.contains('light')?'dark':'light';applyTheme(t);localStorage.setItem('theme',t);} ;
+themeToggle.onclick=()=>{const t=document.documentElement.classList.contains('light')?'dark':'light';applyTheme(t);localStorage.setItem('theme',t);};
 
-/* ===== Toggle buttons ===== */
-function setToggle(btn,sec,labelShow,labelHide){
-  const sync=()=>btn.textContent=sec.classList.contains('open')?labelHide:labelShow;
-  btn.addEventListener('click',()=>{sec.classList.toggle('open');sync();if(sec.id==='graphSection'&&sec.classList.contains('open'))renderAllCharts();});
-  sync();
-}
-setToggle($('#toggleTable'),$('#tableSection'),'📋 테이블 보기','📋 테이블 숨기기');
-setToggle($('#toggleGraph'),$('#graphSection'),'📊 그래프 보기','📊 그래프 숨기기');
-
-/* ===== Resilient endpoints (원본 유지) ===== */
-const BASE=(()=>{ 
-  const u=new URL(location.href); 
-  const q=u.searchParams.get('base'); 
-  if(q) return q.replace(/\/$/,''); 
-  const s=localStorage.getItem('base'); 
-  return (s?s:'http://192.168.31.204');
-})();
-const setBase=(b)=>{ localStorage.setItem('base', b.replace(/\/$/,'')); location.reload(); };
+/* ===== BASE (엔드포인트) ===== */
+const BASE = (()=>{ const saved=localStorage.getItem(LS_BASE); return saved?saved.replace(/\/$/,''):'http://esp32.local'; })();
 const EP = {
   status : ['/api/status','/status','/readings','/get','/api/readings'],
   history60: ['/api/history?limit=60','/history?limit=60','/api/history','/history','/logs'],
@@ -220,207 +197,142 @@ const EP = {
 };
 async function fetchFirstJson(cands,opt={}){for(const u of cands){const url=/^https?:\/\//.test(u)?u:(BASE+u);try{const r=await fetch(url,{...opt,cache:'no-store'});if(!r.ok)continue;return await r.json();}catch(e){}}throw new Error('모든 경로 실패');}
 
-/* ===== UI helpers ===== */
+/* ===== DOM ===== */
+const $=id=>document.getElementById(id);
+const connBadge=$('connBadge'), banner=$('banner');
+const aht_t=$('aht_t'), aht_h=$('aht_h'), scd_t=$('scd_t'), scd_h=$('scd_h'), scd_c=$('scd_c');
+const ledTxt=$('led'), rssiTxt=$('rssi'), tsTxt=$('ts');
+const tableBody=$('logtbl');
+
+/* ===== 표시/배지 ===== */
 function setConnBadge(ok){
-  const b=$('#connBadge');
-  b.textContent = ok ? '연결됨' : '오프라인';
-  b.classList.toggle('ok', ok);
-  b.classList.toggle('bad', !ok);
+  connBadge.textContent = ok ? '연결됨' : '오프라인';
+  connBadge.classList.toggle('ok', ok);
+  connBadge.classList.toggle('bad', !ok);
 }
-const fmtT=v=>v==null?'--.-':Number(v).toFixed(1);
-const fmtP=v=>v==null?'--':Math.round(Number(v));
-const fmtC=v=>v==null?'----':Number(v);
-
-function syncButtons(led){const on=$('#on'),off=$('#off');on.classList.remove('active','dim');off.classList.remove('active','dim');if(led){on.classList.add('active');off.classList.add('dim');}else{off.classList.add('active');on.classList.add('dim');}}
-
-let histBuf=[];
 function fmtNow(){const d=new Date();const p=n=>String(n).padStart(2,'0');return `${d.getFullYear()}-${p(d.getMonth()+1)}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}:${p(d.getSeconds())}`;}
-function tickClock(){ $('#ts').textContent = fmtNow(); }
+function tickClock(){ tsTxt.textContent = fmtNow(); }
 
-/* ===== 빠른 상태 폴링 ===== */
-async function refreshFast(){
+/* ===== 캐시 즉시 표시 ===== */
+function renderFromCache(){
+  const raw = localStorage.getItem(LS_LAST_STATUS);
+  if(!raw) return false;
   try{
-    const s=await fetchFirstJson(EP.status);
-    const aht_t=s.aht_t??s.aht_temp??s.temp??s.aht?.t;
-    const aht_h=s.aht_h??s.aht_hum ??s.hum ??s.aht?.h;
-    const scd_t=s.scd_t??s.scd_temp??s.st   ??s.scd?.t;
-    const scd_h=s.scd_h??s.scd_hum ??s.sh   ??s.scd?.h;
-    const co2  =s.co2  ??s.scd_co2 ??s.ppm  ??s.scd?.co2;
-    const led  =(s.led=='1'||s.led===1||s.led==='on'||s.led===true);
-
-    $('#aht_t').textContent=aht_t!=null?Number(aht_t).toFixed(1)+' °C':'--.- °C';
-    $('#aht_h').textContent=aht_h!=null?Math.round(Number(aht_h))+' %':'-- %';
-    $('#scd_t').textContent=scd_t!=null?Number(scd_t).toFixed(1)+' °C':'--.- °C';
-    $('#scd_h').textContent=scd_h!=null?Math.round(Number(scd_h))+' %':'-- %';
-    $('#scd_c').textContent=co2!=null?(co2+' ppm'):'---- ppm';
-    $('#led').textContent='LED: '+(led?'ON':'OFF');
-    $('#rssi').textContent=`RSSI: ${s.rssi!=null? (s.rssi+' [dBm]') : '-- [dBm]'}`;
-    tickClock();
-    syncButtons(led);
-
-    $('#banner').textContent='AHT25/SCD42 연결 OK';
-    setConnBadge(true);
-  }catch(e){
-    $('#banner').textContent='통신 오류: '+e.message;
-    setConnBadge(false);
-    tickClock();
-  }
+    const s = JSON.parse(raw);
+    applyStatus(s, /*fromCache*/true);
+    return true;
+  }catch(_){ return false; }
 }
 
-/* ===== History (table + charts) ===== */
-function normalizeRec(o){
-  return {
-    aht_t:Number(o.aht_t ?? o.aht_temp ?? o.temp ?? o.at) || NaN,
-    aht_h:Number(o.aht_h ?? o.aht_hum  ?? o.hum  ?? o.ah) || NaN,
-    scd_t:Number(o.scd_t ?? o.scd_temp ?? o.st) || NaN,
-    scd_h:Number(o.scd_h ?? o.scd_hum  ?? o.sh) || NaN,
-    co2  :Number(o.co2   ?? o.scd_co2  ?? o.ppm)|| NaN,
-    led  :(o.led=='1'||o.led===1||o.led==='on')?1:0
-  };
+/* ===== 상태 적용 ===== */
+function applyStatus(s, fromCache=false){
+  const aT = Number(s.aht_t), aH = Number(s.aht_h);
+  const sT = Number(s.scd_t), sH = Number(s.scd_h);
+  const co2= Number(s.co2);
+  const led = (s.led=='1'||s.led===1||s.led===true||s.led==='on');
+
+  if (!Number.isNaN(aT)) aht_t.textContent = aT.toFixed(1)+' °C';
+  if (!Number.isNaN(aH)) aht_h.textContent = Math.round(aH)+' %';
+  if (!Number.isNaN(sT)) scd_t.textContent = sT.toFixed(1)+' °C';
+  if (!Number.isNaN(sH)) scd_h.textContent = Math.round(sH)+' %';
+  if (!Number.isNaN(co2) && co2>0) scd_c.textContent = co2+' ppm';
+  ledTxt.textContent = 'LED: '+(led?'ON':'OFF');
+
+  if (typeof s.rssi !== 'undefined') rssiTxt.textContent = `RSSI: ${s.rssi} [dBm]`;
+  tickClock();
+
+  // 캐시 저장(실시간 응답에서만)
+  if (!fromCache) localStorage.setItem(LS_LAST_STATUS, JSON.stringify(s));
+
+  banner.textContent='AHT25/SCD42 연결 OK';
+  setConnBadge(true);
 }
+
+/* ===== 히스토리 ===== */
 function addRowTop(obj, ts){
-  const tbody=$('#logtbl');
   const d=ts?new Date(ts):new Date();
   const hh=String(d.getHours()).padStart(2,'0');
   const mm=String(d.getMinutes()).padStart(2,'0');
   const tr=document.createElement('tr');
   tr.innerHTML=`
     <td>${hh}:${mm}</td>
-    <td>${fmtT(obj.aht_t ?? obj.aht_temp ?? obj.temp)}</td>
-    <td>${fmtP(obj.aht_h ?? obj.aht_hum  ?? obj.hum)}</td>
-    <td>${fmtT(obj.scd_t ?? obj.scd_temp)}</td>
-    <td>${fmtP(obj.scd_h ?? obj.scd_hum)}</td>
-    <td>${fmtC(obj.co2   ?? obj.scd_co2)}</td>
-    <td>${(obj.led=='1'||obj.led===1||obj.led==='on')?'ON':'OFF'}</td>`;
-  if(tbody.firstChild) tbody.insertBefore(tr, tbody.firstChild); else tbody.appendChild(tr);
-  while(tbody.rows.length>maxRows) tbody.deleteRow(tbody.rows.length-1);
+    <td>${Number(obj.aht_t).toFixed(1)}</td>
+    <td>${Math.round(Number(obj.aht_h))}</td>
+    <td>${Number(obj.scd_t).toFixed(1)}</td>
+    <td>${Math.round(Number(obj.scd_h))}</td>
+    <td>${obj.co2}</td>
+    <td>${(obj.led?'ON':'OFF')}</td>`;
+  if(tableBody.firstChild) tableBody.insertBefore(tr, tableBody.firstChild); else tableBody.appendChild(tr);
+  while(tableBody.rows.length>maxRows) tableBody.deleteRow(tableBody.rows.length-1);
 }
 async function loadHistory60(){
   try{
     const list=await fetchFirstJson(EP.history60);
-    const tbody=$('#logtbl'); tbody.innerHTML='';
-    histBuf=[];
+    tableBody.innerHTML='';
     const now=Date.now();
-    for(let i=0;i<list.length;i++){
-      const it=list[i];
+    for(const it of list){
       const ts=it.timestamp?new Date(it.timestamp):new Date(now-(it.age||0)*60000);
-      addRowTop(it,ts);
-      histBuf.push(normalizeRec(it));
+      addRowTop({
+        aht_t:it.aht_t??it.aht_temp??it.temp,
+        aht_h:it.aht_h??it.aht_hum ??it.hum,
+        scd_t:it.scd_t??it.scd_temp??it.st,
+        scd_h:it.scd_h??it.scd_hum ??it.sh,
+        co2  :it.co2  ??it.scd_co2 ??it.ppm,
+        led  :(it.led=='1'||it.led===1||it.led==='on')
+      }, ts);
     }
-    while(histBuf.length>maxRows) histBuf.shift();
-  }catch(e){}
-}
-async function refreshLogOne(){
-  try{
-    const one=await fetchFirstJson(EP.history1);
-    const item=Array.isArray(one)?one[0]:one; if(!item) return;
-    const now=Date.now();
-    const ts=item.timestamp?new Date(item.timestamp):new Date(now-(item.age||0)*60000);
-    addRowTop(item,ts);
-    histBuf.push(normalizeRec(item)); if(histBuf.length>maxRows) histBuf.shift();
-    renderAllCharts();
-  }catch(e){}
+  }catch(_){}
 }
 
-/* ===== Mini chart engine ===== */
-const dpr=()=>window.devicePixelRatio||1;
-function prepCanvas(canvas){
-  const rect=canvas.getBoundingClientRect(); const w=Math.max(1,rect.width), h=Math.max(1,rect.height);
-  canvas.width=Math.floor(w*dpr()); canvas.height=Math.floor(h*dpr());
-  const ctx=canvas.getContext('2d'); ctx.setTransform(dpr(),0,0,dpr(),0,0); return ctx;
-}
-function drawChart(canvas, series, opts={}){
-  const ctx=prepCanvas(canvas);
-  const W=Math.max(1,canvas.getBoundingClientRect().width), H=Math.max(1,canvas.getBoundingClientRect().height);
-  const padL=38,padR=10,padT=opts.legend?32:10,padB=26,plotW=Math.max(1,W-padL-padR),plotH=Math.max(1,H-padT-padB);
-  const light=document.documentElement.classList.contains('light');
-  ctx.clearRect(0,0,W,H);
-  ctx.fillStyle=light?'#eef1f7':'#0f1526'; ctx.fillRect(0,0,W,H);
-  if (opts.legend && series.some(s=>s.name)){
-    const items = series.filter(s=>s.name);
-    ctx.font='12px system-ui,Segoe UI,Roboto,Apple SD Gothic Neo,sans-serif';
-    ctx.textAlign='left'; ctx.textBaseline='middle';
-    let x=padL, y=16;
-    for (const it of items){
-      const sw=14, sh=6;
-      ctx.fillStyle=it.color||'#7aa0ff';
-      ctx.fillRect(x, y-sh/2, sw, sh);
-      ctx.fillStyle=light?'#5a6b8a':'#9fb2d7';
-      ctx.fillText('  '+it.name, x+sw+4, y);
-      x += sw + 4 + ctx.measureText('  '+it.name).width + 14;
-    }
-  }
-  ctx.strokeStyle=light?'#ccd4e0':'#22314f'; ctx.beginPath();
-  for(let g=0;g<=4;g++){const y=padT+plotH*g/4;ctx.moveTo(padL,y);ctx.lineTo(padL+plotW,y);}
-  for(let m=0;m<=60;m+=10){const x=padL+plotW*(m/60);ctx.moveTo(x,padT);ctx.lineTo(x,padT+plotH);}
-  ctx.stroke();
-  ctx.fillStyle=light?'#5a6b8a':'#9fb2d7'; ctx.font='12px system-ui,Segoe UI,Roboto,Apple SD Gothic Neo,sans-serif';
-  ctx.textAlign='center'; ctx.textBaseline='top';
-  for(let m=0;m<=60;m+=10){const x=padL+plotW*(m/60);ctx.fillText((60-m)==0?'지금':`-${60-m}m`,x,padT+plotH+6);}
-  const vals=[]; for(const s of series){for(const v of s.data){if(Number.isFinite(v)) vals.push(v);}}
-  let vmin=Math.min(...(vals.length?vals:[0])), vmax=Math.max(...(vals.length?vals:[1])); if(vmax===vmin){vmax=vmin+1;}
-  const pad=(vmax-vmin)*0.1; vmin-=pad; vmax+=pad;
-  ctx.textAlign='right'; ctx.textBaseline='middle';
-  for(let g=0;g<=4;g++){const y=padT+plotH*g/4, val=vmax-(vmax-vmin)*g/4; ctx.fillText(val.toFixed((vmax-vmin)<10?1:0), padL-6, y);}
-  function xAt(i){return padL+plotW*(i/59);} function yAt(v){return padT+((vmax-v)/ (vmax-vmin))*plotH;}
-  const defaultColors=['#7aa0ff','#ff9a7a','#7affb0','#ffd67a','#c67aff']; let ci=0;
-  for(const s of series){
-    ctx.beginPath(); ctx.lineWidth=2; ctx.strokeStyle=s.color||(defaultColors[ci++%defaultColors.length]);
-    let moved=false; const N=s.data.length;
-    for(let i=0;i<60;i++){
-      const idx=i-(60-N); const v=(idx>=0&&idx<N)?s.data[idx]:NaN; const x=xAt(i);
-      if(Number.isFinite(v)){const y=yAt(v); if(!moved){ctx.moveTo(x,y); moved=true;} else ctx.lineTo(x,y);} else moved=false;
-    }
-    ctx.stroke();
+/* ===== 폴링 ===== */
+async function refreshFast(){
+  try{
+    const s=await fetchFirstJson(EP.status);
+    applyStatus(s, /*fromCache*/false);
+  }catch(e){
+    banner.textContent='통신 오류: '+e.message;
+    setConnBadge(false);
+    tickClock();
   }
 }
-function renderAllCharts(){
-  if(!$('#graphSection').classList.contains('open')) return;
-  const aht_t=histBuf.map(r=>r.aht_t), scd_t=histBuf.map(r=>r.scd_t);
-  const aht_h=histBuf.map(r=>r.aht_h), scd_h=histBuf.map(r=>r.scd_h);
-  const co2  =histBuf.map(r=>r.co2);
-  drawChart($('#chTemp'),[{name:'AHT25 온도',data:aht_t,color:'#7aa0ff'},{name:'SCD42 온도',data:scd_t,color:'#ff9a7a'}],{legend:true});
-  drawChart($('#chHum'), [{name:'AHT25 습도',data:aht_h,color:'#7aa0ff'},{name:'SCD42 습도',data:scd_h,color:'#ff9a7a'}],{legend:true});
-  drawChart($('#chCO2'), [{name:'SCD42 CO₂', data:co2,  color:'#7aa0ff'}],{legend:true});
-}
+
+/* ===== LED 제어 ===== */
+document.getElementById('on').onclick  = async()=>{try{await fetch(BASE+EP.ledOn[0], {cache:'no-store'});}catch(_){ } refreshFast();};
+document.getElementById('off').onclick = async()=>{try{await fetch(BASE+EP.ledOff[0],{cache:'no-store'});}catch(_){ } refreshFast();};
+
+/* ===== Wi-Fi 모달 ===== */
+const bd=document.getElementById('wifiBackdrop');
+const openModal = ()=>{ document.getElementById('wifiHint').textContent=''; bd.style.display='grid'; };
+const closeModal= ()=>{ bd.style.display='none'; };
+document.getElementById('btnWifi').onclick=openModal;
+document.getElementById('btnWifiCancel').onclick=closeModal;
+document.getElementById('btnWifiSave').onclick=async ()=>{
+  const ss=document.getElementById('inSsid').value.trim();
+  const pw=document.getElementById('inPass').value;
+  const hint=document.getElementById('wifiHint');
+  if(!ss||!pw){ hint.textContent='SSID/비밀번호를 입력하세요.'; return; }
+  try{
+    const r=await fetch(BASE+'/api/wifi',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({ssid:ss,pass:pw})});
+    if(!r.ok) throw new Error('HTTP '+r.status);
+    hint.textContent='전송 완료. 장치가 재연결 중입니다…';
+    setTimeout(closeModal, 900);
+  }catch(e){ hint.textContent='전송 실패: '+e.message; }
+};
 
 /* ===== 부트 ===== */
 (async()=>{
-  // 버튼 연결
-  $('#on').onclick  = async()=>{await fetch(BASE + EP.ledOn[0],  {cache:'no-store'});  refreshFast();};
-  $('#off').onclick = async()=>{await fetch(BASE + EP.ledOff[0], {cache:'no-store'});  refreshFast();};
-  $('#btnRefresh').onclick = ()=>{ refreshFast(); loadHistory60(); };
+  // 1) 캐시 먼저 즉시 렌더(깜빡임 방지)
+  renderFromCache();
 
-  // Wi-Fi 모달
-  const bd=$('#wifiBackdrop'); const openModal=()=>{ $('#wifiHint').textContent=''; bd.style.display='grid'; };
-  const closeModal=()=>{ bd.style.display='none'; };
-  $('#btnWifi').onclick=openModal; $('#btnWifiCancel').onclick=closeModal;
-  $('#btnWifiSave').onclick=async ()=>{
-    const ss=$('#inSsid').value.trim(); const pw=$('#inPass').value;
-    if(!ss||!pw){ $('#wifiHint').textContent='SSID/비밀번호를 입력하세요.'; return; }
-    try{
-      const r=await fetch(BASE + '/api/wifi', {
-        method:'POST', headers:{'Content-Type':'application/json'},
-        body: JSON.stringify({ssid:ss, pass:pw})
-      });
-      if(!r.ok) throw new Error('HTTP '+r.status);
-      $('#wifiHint').textContent='전송 완료. 장치가 재연결 중입니다…';
-      setTimeout(closeModal, 900);
-    }catch(e){
-      $('#wifiHint').textContent='전송 실패: ' + e.message;
-    }
-  };
-
-  // 초기 데이터
-  await loadHistory60();
+  // 2) 최신값 요청
   await refreshFast();
-  setInterval(refreshFast, fastMs);
-  setInterval(refreshLogOne, 60000);
 
-  // 연결 상태 뱃지 갱신
-  setConnBadge(true);
-  // 시계
-  setInterval(tickClock, 1000);
+  // 3) 테이블/그래프용 히스토리(초기 1회)
+  loadHistory60();
+
+  // 4) 주기 폴링
+  setInterval(refreshFast, fastMs);
+  setInterval(()=>{ tsTxt.textContent = fmtNow(); }, 1000);
 })();
 </script>
 </body>
