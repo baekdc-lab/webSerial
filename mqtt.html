@@ -32,7 +32,7 @@ hr{border:0;border-top:1px solid var(--line);margin:14px 0}
 .btn.on{background:#2d6bff}
 .btn.off{background:#32405e}
 .btn.active{filter:brightness(1.08);box-shadow:0 0 0 3px rgba(255,255,255,.07) inset}
-.btn.dim{opacity:.55}
+.btn.dim{opacity:.52}
 
 /* 접힘 */
 .collapsible{max-height:0;overflow:hidden;transition:max-height .45s ease,opacity .3s ease;opacity:0}
@@ -140,17 +140,27 @@ input[type="text"],input[type="password"]{width:100%;padding:10px 12px;backgroun
     <h3 style="margin:0 0 8px 0">Wi-Fi 설정</h3>
     <p class="mut small" style="margin-top:0">SSID와 비밀번호를 입력하면 장치가 잠시 후 해당 AP로 재연결합니다.</p>
     <div class="row"><label class="small mut">SSID</label><input id="inSsid" type="text" placeholder="예: Backhome"></div>
-    <div class="row"><label class="small mut">비밀번호</label><input id="inPass" type="password" placeholder="비밀번호"></input></div>
+    <div class="row"><label class="small mut">비밀번호</label><input id="inPass" type="password" placeholder="비밀번호"></div>
     <div id="wifiHint" class="hint"></div>
     <div class="btns"><button id="btnWifiCancel" class="smallbtn">취소</button><button id="btnWifiSave" class="smallbtn">저장 & 적용</button></div>
   </div>
 </div>
 
 <script>
-/* ===== 기본 ===== */
+/* ========== 공통 유틸 ========== */
+const fmtNow=()=>{const d=new Date();const p=n=>String(n).padStart(2,'0');return `${d.getFullYear()}-${p(d.getMonth()+1)}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}:${p(d.getSeconds())}`;}
+const $=id=>document.getElementById(id);
+
+/* ========== 테마 ========== */
+const themeToggle=$('themeToggle');
+function applyTheme(t){document.documentElement.classList.toggle('light',t==='light');themeToggle.textContent=(t==='light')?'☀️':'🌙'}
+applyTheme(localStorage.getItem('theme')||'dark');
+themeToggle.onclick=()=>{const t=document.documentElement.classList.contains('light')?'dark':'light';applyTheme(t);localStorage.setItem('theme',t);};
+
+/* ========== 네트워크/엔드포인트 ========== */
 const LS_LAST_STATUS='esp32_last_status', LS_BASE='base';
-const BASE=(localStorage.getItem(LS_BASE)||'http://esp32.local').replace(/\/$/,'');
-const fastMs=3000, maxRows=60;
+let BASE=(localStorage.getItem(LS_BASE)||'').replace(/\/$/,'');
+const CANDIDATES=(()=>{const arr=[]; if(BASE) arr.push(BASE); arr.push('http://esp32.local','http://192.168.31.204'); return arr;})();
 const EP={
   status:['/api/status','/status','/readings','/get','/api/readings'],
   history60:['/api/history?limit=60','/history?limit=60','/api/history','/history','/logs'],
@@ -158,45 +168,44 @@ const EP={
   ledOn:['/api/led?state=on','/set?led=1','/led/on'],
   ledOff:['/api/led?state=off','/set?led=0','/led/off'],
 };
-async function fetchFirstJson(cands,opt={}){for(const u of cands){const url=/^https?:\/\//.test(u)?u:(BASE+u);try{const r=await fetch(url,{...opt,cache:'no-store'});if(!r.ok)continue;return await r.json();}catch(_){}}throw new Error('모든 경로 실패');}
-async function sendFirst(cands){
-  for(const path of cands){
-    const url=BASE+path;
+async function tryStatus(url){ try{const r=await fetch(url+'/api/status',{cache:'no-store'}); return r.ok;}catch(_){return false;} }
+async function discoverBase(){
+  for(const cand of CANDIDATES){ if(await tryStatus(cand)){ BASE=cand; localStorage.setItem(LS_BASE, BASE); return true; } }
+  return false;
+}
+async function fetchFirstJson(paths,opt={}){
+  for(const p of paths){
+    const url=(/^https?:\/\//.test(p)?p:(BASE+p));
+    try{const r=await fetch(url,{...opt,cache:'no-store'}); if(!r.ok) continue; return await r.json();}catch(_){}
+  }
+  throw new Error('모든 경로 실패');
+}
+async function sendFirst(paths){
+  for(const p of paths){
+    const url=BASE+p;
     try{let r=await fetch(url,{method:'POST'}); if(r.ok) return await r.json();}catch(_){}
     try{let r=await fetch(url); if(r.ok) return await r.json();}catch(_){}
   }
   throw new Error('요청 실패');
 }
 
-/* ===== DOM ===== */
-const $=id=>document.getElementById(id);
+/* ========== DOM ========== */
 const aht_t=$('aht_t'), aht_h=$('aht_h'), scd_t=$('scd_t'), scd_h=$('scd_h'), scd_c=$('scd_c');
 const ledTxt=$('led'), rssiTxt=$('rssi'), tsTxt=$('ts');
-const tableBody=$('logtbl');
+const tableBody=$('logtbl'); const secTable=$('tableSection'), secGraph=$('graphSection');
 
-/* ===== 테마 ===== */
-const themeToggle=$('themeToggle');
-function applyTheme(t){document.documentElement.classList.toggle('light',t==='light');themeToggle.textContent=(t==='light')?'☀️':'🌙'}
-applyTheme(localStorage.getItem('theme')||'dark');
-themeToggle.onclick=()=>{const t=document.documentElement.classList.contains('light')?'dark':'light';applyTheme(t);localStorage.setItem('theme',t);};
-
-/* ===== 유틸 ===== */
-function fmtNow(){const d=new Date();const p=n=>String(n).padStart(2,'0');return `${d.getFullYear()}-${p(d.getMonth()+1)}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}:${p(d.getSeconds())}`;}
-function tickClock(){ tsTxt.textContent = fmtNow(); }
-
-/* ===== 캐시 먼저 표시 ===== */
+/* ========== 캐시 즉시 렌더(깜빡임 방지) ========== */
 (function renderFromCache(){
   const raw=localStorage.getItem(LS_LAST_STATUS);
   if(!raw) return;
   try{ applyStatus(JSON.parse(raw), true); }catch(_){}
 })();
 
-/* ===== 상태 적용 & LED 버튼 색 동기화 ===== */
+/* ========== 상태 표시 + LED 버튼 하이라이트 ========== */
 function syncLedButtons(isOn){
   const bon=$('on'), boff=$('off');
   bon.classList.remove('active','dim'); boff.classList.remove('active','dim');
-  if(isOn){ bon.classList.add('active'); boff.classList.add('dim'); }
-  else    { boff.classList.add('active'); bon.classList.add('dim'); }
+  if(isOn){ bon.classList.add('active'); boff.classList.add('dim'); } else { boff.classList.add('active'); bon.classList.add('dim'); }
 }
 function applyStatus(s, fromCache=false){
   const aT=Number(s.aht_t), aH=Number(s.aht_h), sT=Number(s.scd_t), sH=Number(s.scd_h), co=Number(s.co2);
@@ -210,26 +219,16 @@ function applyStatus(s, fromCache=false){
   if(typeof s.rssi!=='undefined') rssiTxt.textContent=`RSSI: ${s.rssi} [dBm]`;
   syncLedButtons(led);
   if(!fromCache) localStorage.setItem(LS_LAST_STATUS, JSON.stringify(s));
+  tsTxt.textContent = fmtNow();
 }
 
-/* ===== 폴링 ===== */
+/* ========== 폴링/히스토리/LED ========== */
+const fastMs=3000, maxRows=60;
 async function refreshFast(){
-  try{ const s=await fetchFirstJson(EP.status); applyStatus(s,false); }
-  catch(_){ /* 조용히 무시 (다음 폴링에서 복구) */ }
+  try{ const s=await fetchFirstJson(EP.status); applyStatus(s,false); } catch(_){ /* offline 일시 무시 */ }
 }
-
-/* ===== LED 제어 ===== */
-$('on').onclick  = async()=>{try{const js=await sendFirst(EP.ledOn);  applyStatus(js,false);}catch(_){}};
-$('off').onclick = async()=>{try{const js=await sendFirst(EP.ledOff); applyStatus(js,false);}catch(_){}};
-
-/* ===== 테이블/그래프 ===== */
-const secTable=$('tableSection'), secGraph=$('graphSection');
-$('toggleTable').onclick=()=>{secTable.classList.toggle('open');};
-$('toggleGraph').onclick=()=>{secGraph.classList.toggle('open'); if(secGraph.classList.contains('open')) renderAllCharts();};
-
 function addRowTop(obj, ts){
-  const d=ts?new Date(ts):new Date();
-  const hh=String(d.getHours()).padStart(2,'0'), mm=String(d.getMinutes()).padStart(2,'0');
+  const d=ts?new Date(ts):new Date(); const hh=String(d.getHours()).padStart(2,'0'), mm=String(d.getMinutes()).padStart(2,'0');
   const tr=document.createElement('tr');
   tr.innerHTML=`<td>${hh}:${mm}</td>
     <td>${Number(obj.aht_t).toFixed(1)}</td>
@@ -258,33 +257,43 @@ async function loadHistory60(){
     }
   }catch(_){}
 }
+$('on').onclick  = async()=>{try{const js=await sendFirst(EP.ledOn);  applyStatus(js,false);}catch(_){}};
+$('off').onclick = async()=>{try{const js=await sendFirst(EP.ledOff); applyStatus(js,false);}catch(_){}};
 
-/* ===== 미니 차트 ===== */
+/* ========== 테이블/그래프 토글 + 차트(간단) ========== */
+$('toggleTable').onclick=()=>{secTable.classList.toggle('open');};
+$('toggleGraph').onclick=()=>{secGraph.classList.toggle('open'); if(secGraph.classList.contains('open')) renderAllCharts();};
+
 let histBuf=[];
 function normalizeRec(o){return{aht_t:Number(o.aht_t??o.aht_temp??o.temp)||NaN,aht_h:Number(o.aht_h??o.aht_hum??o.hum)||NaN,scd_t:Number(o.scd_t??o.scd_temp??o.st)||NaN,scd_h:Number(o.scd_h??o.scd_hum??o.sh)||NaN,co2:Number(o.co2??o.scd_co2??o.ppm)||NaN};}
-async function refreshLogOne(){try{const one=await fetchFirstJson(EP.history1);const it=Array.isArray(one)?one[0]:one;if(!it)return;addRowTop(it);histBuf.push(normalizeRec(it));if(histBuf.length>60)histBuf.shift();renderAllCharts();}catch(_){}
+async function refreshLogOne(){try{const one=await fetchFirstJson(EP.history1);const it=Array.isArray(one)?one[0]:one;if(!it)return;addRowTop(it);histBuf.push(normalizeRec(it));if(histBuf.length>60)histBuf.shift();renderAllCharts();}catch(_){}}
 const dpr=()=>window.devicePixelRatio||1;
 function prepCanvas(cv){const r=cv.getBoundingClientRect();cv.width=Math.floor(r.width*dpr());cv.height=Math.floor(r.height*dpr());const ctx=cv.getContext('2d');ctx.setTransform(dpr(),0,0,dpr(),0,0);return ctx;}
-function drawChart(cv, series, opts={}){const ctx=prepCanvas(cv);const W=cv.clientWidth,H=cv.clientHeight;const padL=38,padR=10,padT=opts.legend?32:10,padB=26,plotW=W-padL-padR,plotH=H-padT-padB;const light=document.documentElement.classList.contains('light');ctx.clearRect(0,0,W,H);ctx.fillStyle=light?'#eef1f7':'#0f1526';ctx.fillRect(0,0,W,H);if(opts.legend){ctx.font='12px system-ui,Segoe UI,Roboto,Apple SD Gothic Neo,sans-serif';ctx.textAlign='left';ctx.textBaseline='middle';let x=padL,y=16;const cols=['#7aa0ff','#ff9a7a','#7affb0'];series.forEach((s,i)=>{ctx.fillStyle=s.color||cols[i%cols.length];ctx.fillRect(x,y-3,14,6);ctx.fillStyle=light?'#5a6b8a':'#9fb2d7';ctx.fillText('  '+s.name,x+18,y);x+=18+ctx.measureText('  '+s.name).width+14;});}
-ctx.strokeStyle=light?'#ccd4e0':'#22314f';ctx.beginPath();for(let g=0;g<=4;g++){const y=padT+plotH*g/4;ctx.moveTo(padL,y);ctx.lineTo(padL+plotW,y);}for(let m=0;m<=60;m+=10){const x=padL+plotW*(m/60);ctx.moveTo(x,padT);ctx.lineTo(x,padT+plotH);}ctx.stroke();ctx.fillStyle=light?'#5a6b8a':'#9fb2d7';ctx.font='12px system-ui,Segoe UI,Roboto,Apple SD Gothic Neo,sans-serif';ctx.textAlign='center';ctx.textBaseline='top';for(let m=0;m<=60;m+=10){const x=padL+plotW*(m/60);ctx.fillText((60-m)==0?'지금':`-${60-m}m`,x,padT+plotH+6);}const vals=[];series.forEach(s=>s.data.forEach(v=>{if(Number.isFinite(v))vals.push(v);}));let vmin=Math.min(...(vals.length?vals:[0])),vmax=Math.max(...(vals.length?vals:[1]));if(vmax===vmin){vmax=vmin+1;}const pad=(vmax-vmin)*0.1;vmin-=pad;vmax+=pad;ctx.textAlign='right';ctx.textBaseline='middle';for(let g=0;g<=4;g++){const y=padT+plotH*g/4,val=vmax-(vmax-vmin)*g/4;ctx.fillText(val.toFixed((vmax-vmin)<10?1:0),padL-6,y);}function xAt(i){return padL+plotW*(i/59)}function yAt(v){return padT+((vmax-v)/ (vmax-vmin))*plotH}const cols=['#7aa0ff','#ff9a7a','#7affb0'];series.forEach((s,i)=>{ctx.beginPath();ctx.lineWidth=2;ctx.strokeStyle=s.color||cols[i%cols.length];let moved=false;const N=s.data.length;for(let i=0;i<60;i++){const idx=i-(60-N);const v=(idx>=0&&idx<N)?s.data[idx]:NaN;const x=xAt(i);if(Number.isFinite(v)){const y=yAt(v);if(!moved){ctx.moveTo(x,y);moved=true;}else ctx.lineTo(x,y);}else moved=false;}ctx.stroke();});}
-function renderAllCharts(){if(!document.getElementById('graphSection').classList.contains('open'))return;const aht_t=histBuf.map(r=>r.aht_t),scd_t=histBuf.map(r=>r.scd_t),aht_h=histBuf.map(r=>r.aht_h),scd_h=histBuf.map(r=>r.scd_h),co2=histBuf.map(r=>r.co2);drawChart(document.getElementById('chTemp'),[{name:'AHT25 온도',data:aht_t,color:'#7aa0ff'},{name:'SCD42 온도',data:scd_t,color:'#ff9a7a'}],{legend:true});drawChart(document.getElementById('chHum'),[{name:'AHT25 습도',data:aht_h,color:'#7aa0ff'},{name:'SCD42 습도',data:scd_h,color:'#ff9a7a'}],{legend:true});drawChart(document.getElementById('chCO2'),[{name:'SCD42 CO₂',data:co2,color:'#7aa0ff'}],{legend:true});}
+function drawChart(cv, series){const ctx=prepCanvas(cv);const W=cv.clientWidth,H=cv.clientHeight;const padL=38,padR=10,padT=26,padB=22,plotW=W-padL-padR,plotH=H-padT-padB;const light=document.documentElement.classList.contains('light');ctx.clearRect(0,0,W,H);ctx.fillStyle=light?'#eef1f7':'#0f1526';ctx.fillRect(0,0,W,H);ctx.strokeStyle=light?'#ccd4e0':'#22314f';ctx.beginPath();for(let g=0;g<=4;g++){const y=padT+plotH*g/4;ctx.moveTo(padL,y);ctx.lineTo(padL+plotW,y);}for(let m=0;m<=60;m+=10){const x=padL+plotW*(m/60);ctx.moveTo(x,padT);ctx.lineTo(x,padT+plotH);}ctx.stroke();const vals=[];series.forEach(s=>s.data.forEach(v=>{if(Number.isFinite(v))vals.push(v);}));let vmin=Math.min(...(vals.length?vals:[0])),vmax=Math.max(...(vals.length?vals:[1]));if(vmax===vmin){vmax=vmin+1;}const pad=(vmax-vmin)*0.1;vmin-=pad;vmax+=pad;function xAt(i){return padL+plotW*(i/59)}function yAt(v){return padT+((vmax-v)/(vmax-vmin))*plotH}const cols=['#7aa0ff','#ff9a7a','#7affb0'];series.forEach((s,i)=>{ctx.beginPath();ctx.lineWidth=2;ctx.strokeStyle=cols[i%cols.length];let moved=false;const N=s.data.length;for(let k=0;k<60;k++){const idx=k-(60-N);const v=(idx>=0&&idx<N)?s.data[idx]:NaN;const x=xAt(k);if(Number.isFinite(v)){const y=yAt(v);if(!moved){ctx.moveTo(x,y);moved=true;}else ctx.lineTo(x,y);}else moved=false;}ctx.stroke();});}
+function renderAllCharts(){if(!secGraph.classList.contains('open'))return;const a=histBuf.map(r=>r.aht_t), b=histBuf.map(r=>r.scd_t), c=histBuf.map(r=>r.aht_h), d=histBuf.map(r=>r.scd_h), e=histBuf.map(r=>r.co2);drawChart(document.getElementById('chTemp'),[{data:a},{data:b}]);drawChart(document.getElementById('chHum'),[{data:c},{data:d}]);drawChart(document.getElementById('chCO2'),[{data:e}]);}
 
-/* ===== Wi-Fi 모달 ===== */
+/* ========== Wi-Fi 모달 ========== */
 const bd=$('wifiBackdrop'); const openModal=()=>{ $('wifiHint').textContent=''; bd.style.display='grid'; }; const closeModal=()=>{ bd.style.display='none'; };
 $('btnWifi').onclick=openModal; $('btnWifiCancel').onclick=closeModal;
-$('btnWifiSave').onclick=async()=>{const ss=document.getElementById('inSsid').value.trim();const pw=document.getElementById('inPass').value;const hint=$('wifiHint');if(!ss||!pw){hint.textContent='SSID/비밀번호를 입력하세요.';return;}try{const r=await fetch(BASE+'/api/wifi',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({ssid:ss,pass:pw})});if(!r.ok)throw new Error('HTTP '+r.status);hint.textContent='전송 완료. 장치가 재연결 중입니다…';setTimeout(closeModal,900);}catch(e){hint.textContent='전송 실패: '+e.message;}};
+$('btnWifiSave').onclick=async()=>{const ss=$('inSsid').value.trim();const pw=$('inPass').value;const hint=$('wifiHint');if(!ss||!pw){hint.textContent='SSID/비밀번호를 입력하세요.';return;}try{const r=await fetch(BASE+'/api/wifi',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({ssid:ss,pass:pw})});if(!r.ok)throw new Error('HTTP '+r.status);hint.textContent='전송 완료. 장치가 재연결 중입니다…';setTimeout(closeModal,900);}catch(e){hint.textContent='전송 실패: '+e.message;}};
 
-/* ===== 부트 ===== */
+/* ========== 부트스트랩 ========== */
 (async()=>{
-  // 최신값 폴링
+  // 우선 시계 시작
+  tsTxt.textContent = fmtNow();
+  setInterval(()=>{ tsTxt.textContent = fmtNow(); }, 1000);
+
+  // 장치 자동 탐색
+  if(!BASE || !(await tryStatus(BASE))) await discoverBase();
+
+  // 상태/히스토리 시작
   await refreshFast();
-  setInterval(refreshFast, fastMs);
-  // 테이블/차트
+  setInterval(refreshFast, 3000);
   await loadHistory60();
-  try{const list=await fetchFirstJson(EP.history60); histBuf=list.map(normalizeRec).slice(-60);}catch(_){}
+
+  // 차트 버퍼 채우기 + 주기 갱신
+  try{ const list=await fetchFirstJson(EP.history60); histBuf=list.map(normalizeRec).slice(-60); }catch(_){}
   setInterval(refreshLogOne, 60000);
-  // 시계
-  setInterval(()=>{ tsTxt.textContent=fmtNow(); }, 1000);
 })();
 </script>
 </body>
