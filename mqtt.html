@@ -3,39 +3,39 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>ESP32 센서 대시보드 (Portrait Tight)</title>
+<title>ESP32 센서 대시보드 (Readable Portrait)</title>
 <script src="https://unpkg.com/mqtt/dist/mqtt.min.js"></script>
 <style>
 :root{--bg:#0b1020;--card:#131a2b;--txt:#e8eefc;--mut:#9fb2d7;--line:#22314f;--btn-bg:#1b2b4a;--btn-border:#2c3e63;--tile:#0f1526;--head:#12203a;--zebra:#10192c}
 :root.light{--bg:#f5f7fa;--card:#fff;--txt:#0b1020;--mut:#5a6b8a;--line:#ccd4e0;--btn-bg:#e4e8ef;--btn-border:#b0bacb;--tile:#eef1f7;--head:#d6deec;--zebra:#eef3fb}
 *{box-sizing:border-box}
-body{margin:0;background:var(--bg);color:var(--txt);font:16px/1.45 system-ui,Segoe UI,Roboto,Apple SD Gothic Neo,sans-serif}
+body{margin:0;background:var(--bg);color:var(--txt);font:16.5px/1.45 system-ui,Segoe UI,Roboto,Apple SD Gothic Neo,sans-serif;letter-spacing:0}
 .wrap{max-width:900px;margin:16px auto;padding:0 10px}
 .card{background:var(--card);border-radius:16px;padding:14px;box-shadow:0 10px 30px rgba(0,0,0,.25)}
-h1{margin:0 0 6px;font-size:22px;font-weight:800;display:flex;justify-content:space-between;align-items:center}
+h1{margin:0 0 6px;font-size:22px;font-weight:800;display:flex;justify-content:space-between;align-items:center;letter-spacing:0}
 .mut{color:var(--mut);margin:0 0 6px}
 .mut.small{font-size:13px}
 hr{border:0;border-top:1px solid var(--line);margin:12px 0}
 .theme-toggle{cursor:pointer;font-size:20px;user-select:none}
 
 /* ===== KPI: 4-up grid that fits on phone portrait ===== */
-.kpi-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;margin-top:4px}
+.kpi-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:6px;margin-top:2px}
 .tile{background:var(--tile);border-radius:12px;padding:8px 6px;text-align:center;min-height:72px;display:flex;flex-direction:column;justify-content:center}
-.kpi-label{font-size:12px;color:var(--mut)}
-.v{font-size:18px;font-weight:800;margin-top:2px;letter-spacing:.1px}
-.u2{font-size:12px;color:var(--mut);line-height:1.05;margin-top:1px}
+.kpi-label{font-size:13px;color:var(--mut);letter-spacing:0}
+.v{font-size:22px;font-weight:900;margin-top:2px;letter-spacing:0}
+.u2{font-size:13px;color:var(--mut);line-height:1.05;margin-top:0}
 @media (min-width:641px){
-  .tile{padding:12px 10px;min-height:84px}
-  .kpi-label{font-size:13px}
-  .v{font-size:22px}
-  .u2{font-size:13px}
+  .tile{padding:12px 10px;min-height:86px}
+  .kpi-label{font-size:14px}
+  .v{font-size:24px}
+  .u2{font-size:13.5px}
 }
 
 /* LED */
 .led{display:flex;align-items:center;gap:10px;margin-top:10px;flex-wrap:wrap}
 .btn{border:0;color:#fff;padding:10px 12px;border-radius:12px;cursor:pointer;font-weight:800;min-width:92px;font-size:14px;transition:background-color .08s ease,transform .08s ease}
 .btn.on{background:#2d6bff}.btn.off{background:#32405e}.btn.active{background:#00cc66}.btn.dim{background:#1b2236}
-.led-status{font-size:12px;color:var(--mut);position:relative;top:3px}
+.led-status{font-size:13px;color:var(--mut);position:relative;top:2px}
 
 /* 토글 */
 .btn.toggle{background:var(--btn-bg);border:1px solid var(--btn-border);color:var(--txt);min-width:112px}
@@ -45,38 +45,41 @@ hr{border:0;border-top:1px solid var(--line);margin:12px 0}
 .collapsible{max-height:0;overflow:hidden;transition:max-height .25s ease,opacity .2s ease;opacity:0}
 .collapsible.open{max-height:2000px;opacity:1}
 
-/* ===== 테이블 (tight for portrait) ===== */
+/* ===== 테이블 (bigger fonts, no horizontal scroll) ===== */
 .tablewrap{overflow:auto;background:var(--tile);border-radius:14px;padding:0;max-height:52vh}
+/* prevent horizontal scroll globally */
+.tablewrap{overflow-x:hidden}
 table{border-collapse:collapse;width:100%;table-layout:fixed}
 thead th{
   position:sticky;top:0;background:var(--head);z-index:1;
   padding:7px 4px 6px;text-align:center;white-space:normal;line-height:1.05;
-  font-size:11.5px;font-weight:800;
+  font-size:12.5px;font-weight:900;letter-spacing:0;
 }
-th .t{display:block;letter-spacing:.1px}
-th .u{display:block;color:var(--mut);font-weight:700;font-size:.8em;margin-top:2px}
+th .t{display:block}
+th .u{display:block;color:var(--mut);font-weight:800;font-size:.82em;margin-top:2px}
 tbody td{
-  padding:6px 4px;border-bottom:1px solid var(--line);
+  padding:7px 4px;border-bottom:1px solid var(--line);
   text-align:center;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
-  font-size:12.5px;font-variant-numeric:tabular-nums;
+  font-size:14px;font-variant-numeric:tabular-nums;letter-spacing:0;
 }
 tbody tr:nth-child(even){background:var(--zebra)}
-/* tighter column widths to fit portrait */
-th:nth-child(1),td:nth-child(1){width:56px}
-th:nth-child(2),td:nth-child(2){width:58px}
-th:nth-child(3),td:nth-child(3){width:58px}
-th:nth-child(4),td:nth-child(4){width:70px}
-th:nth-child(5),td:nth-child(5){width:86px}
-th:nth-child(6),td:nth-child(6){width:52px}
+
+/* Fit columns by percentage so they always sum to 100% */
+th:nth-child(1),td:nth-child(1){width:14%}  /* 시간 */
+th:nth-child(2),td:nth-child(2){width:15%}  /* 온도 */
+th:nth-child(3),td:nth-child(3){width:15%}  /* 습도 */
+th:nth-child(4),td:nth-child(4){width:20%}  /* CO2 */
+th:nth-child(5),td:nth-child(5){width:22%}  /* 일사량 */
+th:nth-child(6),td:nth-child(6){width:14%}  /* LED */
 
 /* Portrait height fit */
 @media (max-width:480px){
-  .tablewrap{max-height:calc(100vh - 240px)}
+  .tablewrap{max-height:calc(100vh - 236px)}
 }
 @media (max-width:360px){
-  .tablewrap{max-height:calc(100vh - 260px)}
-  thead th{font-size:11px}
-  tbody td{font-size:12px}
+  .tablewrap{max-height:calc(100vh - 252px)}
+  thead th{font-size:12px}
+  tbody td{font-size:13.5px}
 }
 
 /* 차트 */
@@ -91,7 +94,7 @@ th:nth-child(6),td:nth-child(6){width:52px}
 .swatch.c1{background:#7aa0ff}.swatch.c2{background:#ff9a7a}.swatch.c3{background:#9ad67b}.swatch.c4{background:#d0a2ff}
 
 .bottomRow{display:flex;justify-content:space-between;align-items:flex-end;gap:10px;color:var(--mut)}
-#mini{white-space:pre-line;font-size:12px;margin:0}
+#mini{white-space:pre-line;font-size:12.5px;margin:0}
 .timeText{font-size:12px;white-space:nowrap;margin:0 2px 0 0}
 </style>
 </head>
@@ -101,7 +104,7 @@ th:nth-child(6),td:nth-child(6){width:52px}
   <p class="mut">랜덤 센서(5초) · 1분 평균(60개) · LED 제어</p>
   <p class="mut small" id="mqttState">브로커 연결 중…</p>
 
-  <!-- KPI: 4-up grid, compact -->
+  <!-- KPI: 4-up grid, larger fonts but tighter spacing -->
   <div class="kpi-grid">
     <div class="tile">
       <div class="kpi-label">온도</div>
