@@ -31,7 +31,7 @@ hr{border:0;border-top:1px solid var(--line);margin:12px 0}
 .btn.on{background:#2d6bff}.btn.off{background:#32405e}.btn.active{background:#00cc66}.btn.dim{background:#1b2236}
 .led-status{font-size:13px;color:var(--mut);position:relative;top:2px}
 
-/* 토글 버튼 */
+/* 토글 */
 .btn.toggle{background:var(--btn-bg);border:1px solid var(--btn-border);color:var(--txt);min-width:112px}
 .toggle-row{display:flex;gap:8px;flex-wrap:wrap;margin:6px 0 10px}
 
@@ -39,16 +39,14 @@ hr{border:0;border-top:1px solid var(--line);margin:12px 0}
 .collapsible{max-height:0;overflow:hidden;transition:max-height .25s ease,opacity .2s ease;opacity:0}
 .collapsible.open{max-height:2000px;opacity:1}
 
-/* 테이블: 기본(리플래시) 헤더 숨김 */
+/* 테이블 */
 .tablewrap{overflow:auto;background:var(--tile);border-radius:14px;padding:0;max-height:52vh;overflow-x:hidden}
 table{border-collapse:collapse;width:100%;table-layout:fixed}
 thead{display:none}
-/* 열 때만 표시 */
 .show-head thead{display:table-header-group}
 .show-head thead th{
   position:sticky;top:0;background:var(--head);z-index:1;
-  padding:7px 4px 6px;text-align:center;line-height:1.05;
-  font-size:12.5px;font-weight:900
+  padding:7px 4px 6px;text-align:center;font-size:12.5px;font-weight:900
 }
 tbody td{
   padding:8px 4px;border-bottom:1px solid var(--line);
@@ -56,7 +54,6 @@ tbody td{
   font-size:14px;font-variant-numeric:tabular-nums
 }
 tbody tr:nth-child(even){background:var(--zebra)}
-/* 고정 폭 */
 col.time{width:14%} col.temp{width:15%} col.hum{width:15%}
 col.co2{width:20%} col.solar{width:22%} col.led{width:14%}
 
@@ -68,7 +65,7 @@ col.co2{width:20%} col.solar{width:22%} col.led{width:14%}
 .canvas-wrap canvas{position:absolute;inset:0;width:100%;height:100%}
 @media (min-width:641px){.canvas-wrap{height:200px}}
 
-/* 하단: 좌측 RSSI, 우측 시각 */
+/* 하단 */
 .bottomRow{display:flex;justify-content:space-between;align-items:flex-end;gap:10px;color:var(--mut)}
 #mini{white-space:nowrap;font-size:12px;line-height:1.2;margin:0;flex:1;min-width:0}
 .timeText{font-size:12px;white-space:nowrap;margin:0 0 0 8px;text-align:right;min-width:180px}
@@ -77,8 +74,7 @@ col.co2{width:20%} col.solar{width:22%} col.led{width:14%}
 <body>
 <div class="wrap"><div class="card">
   <h1>ESP32 센서 대시보드 <span class="theme-toggle" id="themeToggle">🌙</span></h1>
-  <p class="mut">랜덤 센서(5초) · 1분 평균(60개) · LED 제어</p>
-  <p class="mut small" id="mqttState">브로커 연결 중…</p>
+  <p class="mut small" id="mqttState">MQTT 연결 중...</p>
 
   <div class="kpi-grid">
     <div class="tile"><div class="kpi-label">온도</div><div class="v" id="v_temp_val">--</div><div class="u2">°C</div></div>
@@ -99,29 +95,17 @@ col.co2{width:20%} col.solar{width:22%} col.led{width:14%}
     <button class="btn toggle" id="toggleGraph">📊 그래프 보기</button>
   </div>
 
-  <!-- 기본: 닫힘(헤더 감춤 상태) -->
   <div id="tableSection" class="collapsible">
-    <div class="tablewrap" role="table" aria-label="센서 로그">
+    <div class="tablewrap">
       <table id="logtable">
-        <colgroup>
-          <col class="time"><col class="temp"><col class="hum"><col class="co2"><col class="solar"><col class="led">
-        </colgroup>
-        <thead>
-          <tr><th>시간</th><th>온도</th><th>습도</th><th>CO₂</th><th>일사량</th><th>LED</th></tr>
-        </thead>
+        <colgroup><col class="time"><col class="temp"><col class="hum"><col class="co2"><col class="solar"><col class="led"></colgroup>
+        <thead><tr><th>시간</th><th>온도</th><th>습도</th><th>CO₂</th><th>일사량</th><th>LED</th></tr></thead>
         <tbody id="logtbl"></tbody>
       </table>
     </div>
   </div>
 
-  <div id="graphSection" class="collapsible">
-    <div class="charts">
-      <div class="chart"><h3>온도(°C)</h3><div class="canvas-wrap"><canvas id="chTemp"></canvas></div></div>
-      <div class="chart"><h3>습도(%)</h3><div class="canvas-wrap"><canvas id="chHum"></canvas></div></div>
-      <div class="chart"><h3>CO₂(ppm)</h3><div class="canvas-wrap"><canvas id="chCO2"></canvas></div></div>
-      <div class="chart"><h3>일사량(W/m²)</h3><div class="canvas-wrap"><canvas id="chSolar"></canvas></div></div>
-    </div>
-  </div>
+  <div id="graphSection" class="collapsible"></div>
 
   <hr>
   <div class="bottomRow">
@@ -131,166 +115,42 @@ col.co2{width:20%} col.solar{width:22%} col.led{width:14%}
 </div></div>
 
 <script>
-/* ===== 유틸 ===== */
 const $=s=>document.querySelector(s);
-function fmtNow(){ const d=new Date(),p=n=>String(n).padStart(2,'0'); return `${d.getFullYear()}-${p(d.getMonth()+1)}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}:${p(d.getSeconds())}`; }
+function fmtNow(){const d=new Date(),p=n=>String(n).padStart(2,'0');return`${d.getFullYear()}-${p(d.getMonth()+1)}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}:${p(d.getSeconds())}`}
 
-/* ===== 테마 ===== */
-const themeToggle=$('#themeToggle');
-function applyTheme(t){ document.documentElement.classList.toggle('light',t==='light'); themeToggle.textContent=(t==='light')?'☀️':'🌙'; renderChartsAll(); }
-applyTheme(localStorage.getItem('theme')||'dark');
-themeToggle.onclick=()=>{ const t=document.documentElement.classList.contains('light')?'dark':'light'; applyTheme(t); localStorage.setItem('theme',t); };
+const brokerUrl="wss://6c56aefe0ddb4d57977c735f5070abe8.s1.eu.hivemq.cloud:8884/mqtt";
+const mqttOpt={username:"mqtt_ESP32",password:"gomqtt_ESP32",clientId:"web-"+Math.random().toString(16).slice(2),clean:true,reconnectPeriod:2000};
+const client=mqtt.connect(brokerUrl,mqttOpt);
 
-/* ===== MQTT 연결 ===== */
-const brokerUrl = "wss://6c56aefe0ddb4d57977c735f5070abe8.s1.eu.hivemq.cloud:8884/mqtt";
-const mqttOpt = { username:"mqtt_ESP32", password:"gomqtt_ESP32", clientId:"web-"+Math.random().toString(16).slice(2), clean:true, reconnectPeriod:2000 };
-const client = mqtt.connect(brokerUrl, mqttOpt);
-client.on('connect', ()=>{ $('#mqttState').textContent='MQTT 연결 OK'; client.subscribe('esp32/status'); });
-client.on('reconnect', ()=> $('#mqttState').textContent='브로커 재연결 중…');
-client.on('offline',  ()=> $('#mqttState').textContent='브로커 오프라인');
-client.on('error',    e => $('#mqttState').textContent='에러: '+e.message);
+client.on('connect',()=>{$('#mqttState').textContent='MQTT 연결 OK';client.subscribe('esp32/status');});
+client.on('message',(t,p)=>{if(t!=='esp32/status')return;const s=JSON.parse(new TextDecoder().decode(p));renderStatus(s);});
 
-/* ===== 상태 수신 ===== */
-client.on('message', (topic,payload)=>{
-  if(topic!=='esp32/status') return;
-  const s = JSON.parse(new TextDecoder().decode(payload));
-  renderStatus(s);
-  localStorage.setItem('lastStatus', JSON.stringify(s));
-  pushMinuteSample(s, new Date());
-});
-
-/* ===== LED 제어 — LED_ON / LED_OFF 발행 ===== */
-document.querySelector('#on').onclick  = ()=> client.publish('esp32/led', 'LED_ON');
-document.querySelector('#off').onclick = ()=> client.publish('esp32/led', 'LED_OFF');
-
-/* ===== 캐시 ===== */
-let histBuf = JSON.parse(localStorage.getItem('histBuf')||'[]');
-let lastStatus = JSON.parse(localStorage.getItem('lastStatus')||'null');
-const el = {
-  mqttState: $('#mqttState'),
-  tempVal: $('#v_temp_val'), humVal: $('#v_hum_val'), co2Val: $('#v_co2_val'), solarVal: $('#v_solar_val'),
-  ledTxt: $('#led'), mini: $('#mini'), ts: $('#ts')
-};
-
-function toBool(v){ if(typeof v==='boolean') return v; if(typeof v==='number') return v!==0;
-  if(typeof v==='string'){ const t=v.trim().toLowerCase(); return t==='1'||t==='on'||t==='true'; } return !!v; }
-
-function syncButtons(on){
-  const bon=$('#on'), boff=$('#off');
-  bon.classList.remove('active','dim'); boff.classList.remove('active','dim');
-  if(on){ bon.classList.add('active'); boff.classList.add('dim'); }
-  else  { boff.classList.add('active'); bon.classList.add('dim'); }
-}
+document.querySelector('#on').onclick = ()=>client.publish('esp32/led','LED_ON');
+document.querySelector('#off').onclick= ()=>client.publish('esp32/led','LED_OFF');
 
 function renderStatus(s){
-  const t=Number(s.temp), h=Number(s.hum), c=Number(s.co2), so=Number(s.solar), led=toBool(s.led);
-  if(Number.isFinite(t)) el.tempVal.textContent=String(Math.round(t*10)/10);
-  if(Number.isFinite(h)) el.humVal.textContent=String(Math.round(h));
-  if(Number.isFinite(c)) el.co2Val.textContent=String(Math.round(c));
-  if(Number.isFinite(so)) el.solarVal.textContent=String(Math.round(so));
-  el.ledTxt.textContent='LED: '+(led?'ON':'OFF'); syncButtons(led);
-  el.mini.textContent = `RSSI: ${('rssi' in s)?s.rssi:'--'} [dBm]`;
-  el.ts.textContent   = fmtNow();
+  $('#v_temp_val').textContent=Math.round(s.temp);
+  $('#v_hum_val').textContent=Math.round(s.hum);
+  $('#v_co2_val').textContent=Math.round(s.co2);
+  $('#v_solar_val').textContent=Math.round(s.solar);
+  $('#led').textContent='LED: '+(s.led?'ON':'OFF');
+  $('#mini').textContent=`RSSI: ${s.rssi} [dBm]`;
+  $('#ts').textContent=fmtNow();
+  addRowTop(s,new Date());
 }
 
-/* ===== 테이블/그래프 토글 ===== */
-const secTable=$('#tableSection'), secGraph=$('#graphSection'), tbl=$('#logtable'), btnTable=$('#toggleTable');
-btnTable.textContent='📋 테이블 보기'; // 초기: 닫힘 (헤더 감춤)
-btnTable.onclick=()=>{
-  const opening=!secTable.classList.contains('open');
-  secTable.classList.toggle('open');
-  btnTable.textContent=opening?'📋 테이블 숨기기':'📋 테이블 보기';
-  tbl.classList.toggle('show-head', opening); // 열 때만 헤더 보이기
-  if(opening && histBuf.length){
-    $('#logtbl').innerHTML='';
-    for(let i=0;i<histBuf.length;i++){
-      const r = histBuf[i];
-      const ts=new Date(); ts.setMinutes(ts.getMinutes()-(histBuf.length-1-i));
-      addRowTop({...r,led:false},ts);
-    }
-  }
-};
-$('#toggleGraph').onclick=()=>{ const o=secGraph.classList.toggle('open'); $('#toggleGraph').textContent=o?'📊 그래프 숨기기':'📊 그래프 보기'; if(o) renderChartsAll(); };
-
-/* ===== 테이블 행 추가 & 1분 평균 ===== */
 function addRowTop(o,ts){
-  const tb=$('#logtbl');
-  const d=ts?new Date(ts):new Date();
-  const hh=String(d.getHours()).padStart(2,'0'); const mm=String(d.getMinutes()).padStart(2,'0');
+  const tb=$('#logtbl');const d=new Date(ts);
+  const hh=String(d.getHours()).padStart(2,'0'),mm=String(d.getMinutes()).padStart(2,'0');
   const tr=document.createElement('tr');
   tr.innerHTML=`<td>${hh}:${mm}</td>
-    <td>${Math.round(Number(o.temp)*10)/10}</td>
-    <td>${Math.round(Number(o.hum))}</td>
-    <td>${Math.round(Number(o.co2))}</td>
-    <td>${Math.round(Number(o.solar))}</td>
-    <td>${toBool(o.led)?'ON':'OFF'}</td>`;
-  if(tb.firstChild) tb.insertBefore(tr,tb.firstChild); else tb.appendChild(tr);
-  while(tb.rows.length>60) tb.deleteRow(tb.rows.length-1);
+  <td>${Math.round(Number(o.temp))}</td>  <!-- ✅ 온도 정수화 -->
+  <td>${Math.round(Number(o.hum))}</td>
+  <td>${Math.round(Number(o.co2))}</td>
+  <td>${Math.round(Number(o.solar))}</td>
+  <td>${o.led?'ON':'OFF'}</td>`;
+  if(tb.firstChild)tb.insertBefore(tr,tb.firstChild);else tb.appendChild(tr);
 }
-let minuteKey=null, minuteSamples=[];
-function pushMinuteSample(s, now){
-  const key=now.getHours()*60+now.getMinutes();
-  if(minuteKey!==null && key!==minuteKey && minuteSamples.length){
-    const avg=k=>{ const v=minuteSamples.map(x=>+x[k]).filter(Number.isFinite); return v.length?v.reduce((a,b)=>a+b,0)/v.length:NaN; };
-    const row={ temp:avg('temp'), hum:avg('hum'), co2:avg('co2'), solar:avg('solar'), led:minuteSamples.at(-1).led };
-    addRowTop(row, new Date(now.getFullYear(),now.getMonth(),now.getDate(),Math.floor(minuteKey/60),minuteKey%60,0,0));
-    histBuf.push({temp:row.temp, hum:row.hum, co2:row.co2, solar:row.solar});
-    if(histBuf.length>60) histBuf.shift();
-    localStorage.setItem('histBuf', JSON.stringify(histBuf));
-    renderChartsAll();
-  }
-  minuteKey=key;
-  minuteSamples.push({ temp:+s.temp, hum:+s.hum, co2:+s.co2, solar:+s.solar, led:toBool(s.led) });
-}
-
-/* ===== 차트(4개 분리) ===== */
-const dpr = ()=> window.devicePixelRatio||1;
-function prepCanvas(c){ const r=c.getBoundingClientRect(); const w=Math.max(1,r.width),h=Math.max(1,r.height);
-  c.width=Math.floor(w*dpr()); c.height=Math.floor(h*dpr()); const ctx=c.getContext('2d'); ctx.setTransform(dpr(),0,0,dpr(),0,0); return ctx; }
-function drawSingleSeries(c, arr, color){
-  const ctx=prepCanvas(c); const W=c.clientWidth,H=c.clientHeight;
-  const padL=42,padR=10,padT=10,padB=22,plotW=W-padL-padR,plotH=H-padT-padB;
-  const light=document.documentElement.classList.contains('light');
-  ctx.clearRect(0,0,W,H);
-  ctx.fillStyle=light?'#eef1f7':'#0f1526'; ctx.fillRect(0,0,W,H);
-  ctx.strokeStyle=light?'#ccd4e0':'#22314f';
-  ctx.beginPath();
-  for(let g=0;g<=4;g++){const y=padT+plotH*g/4;ctx.moveTo(padL,y);ctx.lineTo(padL+plotW,y);}
-  for(let m=0;m<=60;m+=10){const x=padL+plotW*(m/60);ctx.moveTo(x,padT);ctx.lineTo(x,padT+plotH);}
-  ctx.stroke();
-  ctx.fillStyle=light?'#5a6b8a':'#9fb2d7';
-  ctx.font='12px system-ui,Segoe UI,Roboto,Apple SD Gothic Neo,sans-serif';
-  ctx.textAlign='center'; ctx.textBaseline='top';
-  for(let m=0;m<=60;m+=10){const x=padL+plotW*(m/60);ctx.fillText((60-m)==0?'지금':`-${60-m}m`,x,padT+plotH+4);}
-  const vals=arr.filter(v=>Number.isFinite(v));
-  let vmin=Math.min(...(vals.length?vals:[0])), vmax=Math.max(...(vals.length?vals:[1])); if(vmax===vmin){vmax=vmin+1;}
-  const pad=(vmax-vmin)*0.1; vmin-=pad; vmax+=pad;
-  ctx.textAlign='right'; ctx.textBaseline='middle';
-  for(let g=0;g<=4;g++){const y=padT+plotH*g/4, val=vmax-(vmax-vmin)*g/4; ctx.fillText(val.toFixed((vmax-vmin)<10?1:0),padL-6,y); }
-  const xAt=i=>padL+plotW*(i/59), yAt=v=>padT+((vmax-v)/(vmax-vmin))*plotH;
-  ctx.beginPath(); ctx.lineWidth=2; ctx.strokeStyle=color;
-  let moved=false; const N=arr.length;
-  for(let i=0;i<60;i++){
-    const j=i-(60-N); const v=(j>=0&&j<N)?arr[j]:NaN; const x=xAt(i);
-    if(Number.isFinite(v)){const y=yAt(v); if(!moved){ctx.moveTo(x,y); moved=true;} else ctx.lineTo(x,y);} else moved=false;
-  }
-  ctx.stroke();
-}
-function renderChartsAll(){
-  if(!document.getElementById('graphSection').classList.contains('open')) return;
-  const tempArr = histBuf.map(r=>r.temp??NaN);
-  const humArr  = histBuf.map(r=>r.hum??NaN);
-  const co2Arr  = histBuf.map(r=>r.co2??NaN);
-  const solArr  = histBuf.map(r=>r.solar??NaN);
-  drawSingleSeries(document.getElementById('chTemp'),  tempArr, '#7aa0ff');
-  drawSingleSeries(document.getElementById('chHum'),   humArr,  '#ff9a7a');
-  drawSingleSeries(document.getElementById('chCO2'),   co2Arr,  '#9ad67b');
-  drawSingleSeries(document.getElementById('chSolar'), solArr,  '#d0a2ff');
-}
-
-/* ===== 초기 상태 & 시각 갱신 ===== */
-if (lastStatus) { renderStatus(lastStatus); }
-setInterval(()=>{ el.ts.textContent = fmtNow(); },1000);
 </script>
 </body>
 </html>
