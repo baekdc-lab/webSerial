@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>ESP32 센서 대시보드 (Header Restored • Right Time • 4 Charts)</title>
+<title>ESP32 센서 대시보드 (Header • Right Time • 1-line Summary)</title>
 <script src="https://unpkg.com/mqtt/dist/mqtt.min.js"></script>
 <style>
 :root{--bg:#0b1020;--card:#131a2b;--txt:#e8eefc;--mut:#9fb2d7;--line:#22314f;--btn-bg:#1b2b4a;--btn-border:#2c3e63;--tile:#0f1526;--head:#12203a;--zebra:#10192c}
@@ -39,7 +39,7 @@ hr{border:0;border-top:1px solid var(--line);margin:12px 0}
 .collapsible{max-height:0;overflow:hidden;transition:max-height .25s ease,opacity .2s ease;opacity:0}
 .collapsible.open{max-height:2000px;opacity:1}
 
-/* 테이블 (헤더 복구 + sticky) */
+/* 테이블 (헤더 + sticky) */
 .tablewrap{overflow:auto;background:var(--tile);border-radius:14px;padding:0;max-height:52vh;overflow-x:hidden}
 table{border-collapse:collapse;width:100%;table-layout:fixed}
 thead th{
@@ -55,13 +55,12 @@ tbody td{
   font-size:14px;font-variant-numeric:tabular-nums;letter-spacing:0;
 }
 tbody tr:nth-child(even){background:var(--zebra)}
-/* 퍼센트 폭: 가로 스크롤 금지 */
-th:nth-child(1),td:nth-child(1){width:14%}  /* 시간 */
-th:nth-child(2),td:nth-child(2){width:15%}  /* 온도 */
-th:nth-child(3),td:nth-child(3){width:15%}  /* 습도 */
-th:nth-child(4),td:nth-child(4){width:20%}  /* CO2 */
-th:nth-child(5),td:nth-child(5){width:22%}  /* 일사량 */
-th:nth-child(6),td:nth-child(6){width:14%}  /* LED */
+th:nth-child(1),td:nth-child(1){width:14%}
+th:nth-child(2),td:nth-child(2){width:15%}
+th:nth-child(3),td:nth-child(3){width:15%}
+th:nth-child(4),td:nth-child(4){width:20%}
+th:nth-child(5),td:nth-child(5){width:22%}
+th:nth-child(6),td:nth-child(6){width:14%}
 
 /* charts */
 .charts{margin-top:12px;display:grid;grid-template-columns:1fr;gap:10px}
@@ -71,9 +70,11 @@ th:nth-child(6),td:nth-child(6){width:14%}  /* LED */
 .canvas-wrap canvas{position:absolute;inset:0;width:100%;height:100%}
 @media (min-width:641px){ .canvas-wrap{height:200px} }
 
-/* bottom summary: left (two-line), right time */
+/* bottom summary: 1-line summary (no wrap), second line RSSI, right-aligned time */
 .bottomRow{display:flex;justify-content:space-between;align-items:flex-end;gap:10px;color:var(--mut)}
-#mini{white-space:pre-line;font-size:12px;line-height:1.25;margin:0;flex:1}
+#mini{display:flex;flex-direction:column;gap:2px;flex:1;min-width:0;margin:0}
+#mini .l1{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-size:13px;line-height:1.2}
+#mini .l2{white-space:nowrap;font-size:12px;line-height:1.2}
 .timeText{font-size:12px;white-space:nowrap;margin:0 0 0 8px;text-align:right;min-width:180px}
 </style>
 </head>
@@ -81,7 +82,7 @@ th:nth-child(6),td:nth-child(6){width:14%}  /* LED */
 <div class="wrap"><div class="card">
   <h1>ESP32 센서 대시보드 <span class="theme-toggle" id="themeToggle">🌙</span></h1>
   <p class="mut">랜덤 센서(5초) · 1분 평균(60개) · LED 제어</p>
-  <p class="mut small" id="mqttState">브로커 연결 중…</p>
+  <p class="mut small" id="mqttState">브로커 연결 OK</p>
 
   <div class="kpi-grid">
     <div class="tile"><div class="kpi-label">온도</div><div class="v" id="v_temp_val">--</div><div class="u2">°C</div></div>
@@ -131,8 +132,10 @@ th:nth-child(6),td:nth-child(6){width:14%}  /* LED */
 
   <hr>
   <div class="bottomRow">
-    <div id="mini">온도:--°C|습도:--%|CO₂:----ppm|일사량:--W/m²
-RSSI: -- [dBm]</div>
+    <p id="mini">
+      <span class="l1">온도:--°C|습도:--%|CO₂:----ppm|일사량:--W/m²</span>
+      <span class="l2">RSSI: -- [dBm]</span>
+    </p>
     <div id="ts" class="timeText">—</div>
   </div>
 </div></div>
@@ -180,7 +183,8 @@ function renderMini(t,h,c,so,rssi){
   const r  = (typeof rssi!=='undefined' && rssi!==null)?`${rssi}`:'--';
   const line1 = `온도:${tv}°C|습도:${hv}%|CO₂:${cv}ppm|일사량:${sv}W/m²`;
   const line2 = `RSSI: ${r} [dBm]`;
-  el.mini.textContent = line1 + "\n" + line2;
+  el.mini.querySelector('.l1').textContent = line1;
+  el.mini.querySelector('.l2').textContent = line2;
 }
 
 function renderStatus(s){
