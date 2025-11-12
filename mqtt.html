@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>ESP32 센서 대시보드</title>
+<title>ESP32 센서 대시보드 (Portrait-optimized)</title>
 <script src="https://unpkg.com/mqtt/dist/mqtt.min.js"></script>
 <style>
 :root{--bg:#0b1020;--card:#131a2b;--txt:#e8eefc;--mut:#9fb2d7;--line:#22314f;--btn-bg:#1b2b4a;--btn-border:#2c3e63;--tile:#0f1526;--head:#12203a;--zebra:#10192c}
@@ -18,16 +18,22 @@ h1{margin:0 0 8px;font-size:26px;font-weight:800;display:flex;justify-content:sp
 hr{border:0;border-top:1px solid var(--line);margin:14px 0}
 .theme-toggle{cursor:pointer;font-size:22px;user-select:none}
 
-/* KPI */
-.grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin-top:6px}
-.tile{background:var(--tile);border-radius:12px;padding:12px;text-align:center;min-height:86px;display:flex;flex-direction:column;justify-content:center}
+/* KPI row: always single horizontal row (scrollable on small screens) */
+.kpi-row{display:flex;gap:10px;overflow-x:auto;-webkit-overflow-scrolling:touch;padding-bottom:4px}
+.kpi-row::-webkit-scrollbar{height:6px}
+.kpi-row::-webkit-scrollbar-thumb{background:var(--line);border-radius:4px}
+.tile{background:var(--tile);border-radius:12px;padding:12px 14px;text-align:center;min-height:86px;display:flex;flex-direction:column;justify-content:center;flex:0 0 160px}
+.kpi-label{font-size:13px;color:var(--mut)}
 .v{font-size:22px;font-weight:800;margin-top:4px}
 .u2{font-size:14px;color:var(--mut);line-height:1.1;margin-top:2px}
-.kpi-label{font-size:13px;color:var(--mut)}
-@media (max-width:640px){
+@media (min-width:641px){
+  .kpi-row{overflow:visible}
+  .tile{flex:1 0 0;min-width:auto}
+}
+@media (max-width:480px){
+  .tile{flex:0 0 140px}
   .v{font-size:20px}
   .u2{font-size:13px}
-  .grid{grid-template-columns:repeat(2,minmax(0,1fr))}
 }
 
 /* LED */
@@ -39,6 +45,10 @@ hr{border:0;border-top:1px solid var(--line);margin:14px 0}
 /* 토글 */
 .btn.toggle{background:var(--btn-bg);border:1px solid var(--btn-border);color:var(--txt);min-width:120px}
 .toggle-row{display:flex;gap:8px;flex-wrap:wrap;margin:8px 0 12px}
+
+/* collapsible */
+.collapsible{max-height:0;overflow:hidden;transition:max-height .25s ease,opacity .2s ease;opacity:0}
+.collapsible.open{max-height:2000px;opacity:1}
 
 /* ===== 테이블 ===== */
 .tablewrap{overflow:auto;background:var(--tile);border-radius:14px;padding:0;max-height:52vh}
@@ -63,11 +73,18 @@ th:nth-child(4),td:nth-child(4){width:86px}
 th:nth-child(5),td:nth-child(5){width:100px}
 th:nth-child(6),td:nth-child(6){width:66px}
 
-/* Mobile portrait: make table fill safe viewport height */
+/* Mobile portrait optimization */
 @media (max-width:480px){
-  .tablewrap{max-height:calc(100vh - 280px);} /* header+tiles+buttons 여유를 뺀 값 */
+  /* make table fill the remaining viewport height comfortably */
+  .tablewrap{max-height:calc(100vh - 260px)} /* header+tiles+buttons 여유 */
+  thead th{font-size:11.5px;padding:8px 6px 7px}
   tbody td{font-size:12.5px;padding:7px 6px}
-  thead th{font-size:12px;padding:8px 6px 7px}
+}
+/* very small phones */
+@media (max-width:360px){
+  .tablewrap{max-height:calc(100vh - 280px)}
+  thead th{font-size:11px}
+  tbody td{font-size:12px}
 }
 
 /* 차트 */
@@ -92,7 +109,8 @@ th:nth-child(6),td:nth-child(6){width:66px}
   <p class="mut">랜덤 센서(5초) · 1분 평균(60개) · LED 제어</p>
   <p class="mut small" id="mqttState">브로커 연결 중…</p>
 
-  <div class="grid">
+  <!-- KPI: always horizontal -->
+  <div class="kpi-row" id="kpiRow">
     <div class="tile">
       <div class="kpi-label">온도</div>
       <div class="v" id="v_temp_val">--</div>
