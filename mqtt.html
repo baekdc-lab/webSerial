@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>ESP32 센서 대시보드 (No Header • Inline Summary • 4 Charts)</title>
+<title>ESP32 센서 대시보드 (2-line Summary • 4 Charts)</title>
 <script src="https://unpkg.com/mqtt/dist/mqtt.min.js"></script>
 <style>
 :root{--bg:#0b1020;--card:#131a2b;--txt:#e8eefc;--mut:#9fb2d7;--line:#22314f;--btn-bg:#1b2b4a;--btn-border:#2c3e63;--tile:#0f1526;--head:#12203a;--zebra:#10192c}
@@ -51,21 +51,18 @@ tbody td{
 tbody tr:nth-child(even){background:var(--zebra)}
 col.time{width:14%} col.temp{width:15%} col.hum{width:15%} col.co2{width:20%} col.solar{width:22%} col.led{width:14%}
 
-/* bottom summary */
-.bottomRow{display:flex;justify-content:space-between;align-items:center;gap:10px;color:var(--mut)}
-#mini{white-space:nowrap;font-size:13.5px;margin:0}
-.timeText{font-size:12px;white-space:nowrap;margin:0 2px 0 0}
-
-/* charts layout */
+/* charts */
 .charts{margin-top:12px;display:grid;grid-template-columns:1fr;gap:10px}
 .chart{background:var(--tile);border-radius:12px;padding:8px}
 .chart h3{margin:0 0 6px;font-size:14px;color:var(--mut)}
 .canvas-wrap{position:relative;width:100%;height:160px}
 .canvas-wrap canvas{position:absolute;inset:0;width:100%;height:100%}
+@media (min-width:641px){ .canvas-wrap{height:200px} }
 
-@media (min-width:641px){
-  .canvas-wrap{height:200px}
-}
+/* bottom summary (2 lines, smaller font) */
+.bottomRow{display:flex;justify-content:space-between;align-items:flex-end;gap:10px;color:var(--mut)}
+#mini{white-space:pre-line;font-size:12px;line-height:1.25;margin:0}
+.timeText{display:none} /* 타임스탬프는 2번째 줄에 포함하므로 숨김 */
 </style>
 </head>
 <body>
@@ -105,28 +102,17 @@ col.time{width:14%} col.temp{width:15%} col.hum{width:15%} col.co2{width:20%} co
 
   <div id="graphSection" class="collapsible">
     <div class="charts">
-      <div class="chart">
-        <h3>온도(°C)</h3>
-        <div class="canvas-wrap"><canvas id="chTemp"></canvas></div>
-      </div>
-      <div class="chart">
-        <h3>습도(%)</h3>
-        <div class="canvas-wrap"><canvas id="chHum"></canvas></div>
-      </div>
-      <div class="chart">
-        <h3>CO₂(ppm)</h3>
-        <div class="canvas-wrap"><canvas id="chCO2"></canvas></div>
-      </div>
-      <div class="chart">
-        <h3>일사량(W/m²)</h3>
-        <div class="canvas-wrap"><canvas id="chSolar"></canvas></div>
-      </div>
+      <div class="chart"><h3>온도(°C)</h3><div class="canvas-wrap"><canvas id="chTemp"></canvas></div></div>
+      <div class="chart"><h3>습도(%)</h3><div class="canvas-wrap"><canvas id="chHum"></canvas></div></div>
+      <div class="chart"><h3>CO₂(ppm)</h3><div class="canvas-wrap"><canvas id="chCO2"></canvas></div></div>
+      <div class="chart"><h3>일사량(W/m²)</h3><div class="canvas-wrap"><canvas id="chSolar"></canvas></div></div>
     </div>
   </div>
 
   <hr>
   <div class="bottomRow">
-    <div id="mini">온도:--°C|습도:--%|CO₂:----ppm|일사량:--W/m²</div>
+    <div id="mini">온도:--°C|습도:--%|CO₂:----ppm|일사량:--W/m²
+RSSI: -- [dBm]           --</div>
     <div id="ts" class="timeText">—</div>
   </div>
 </div></div>
@@ -165,12 +151,15 @@ function syncButtons(on){
 
 function fmtNow(){ const d=new Date(),p=n=>String(n).padStart(2,'0'); return `${d.getFullYear()}-${p(d.getMonth()+1)}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}:${p(d.getSeconds())}`; }
 
-function renderMiniLine(t,h,c,so){
+function renderMiniBlock(t,h,c,so,rssi){
   const tv = Number.isFinite(t)?Math.round(t):'--';
   const hv = Number.isFinite(h)?Math.round(h):'--';
   const cv = Number.isFinite(c)?Math.round(c):'----';
   const sv = Number.isFinite(so)?Math.round(so):'--';
-  el.mini.textContent = `온도:${tv}°C|습도:${hv}%|CO₂:${cv}ppm|일사량:${sv}W/m²`;
+  const r  = (typeof rssi!=='undefined' && rssi!==null)?`${rssi}`:'--';
+  const line1 = `온도:${tv}°C|습도:${hv}%|CO₂:${cv}ppm|일사량:${sv}W/m²`;
+  const line2 = `RSSI: ${r} [dBm]           ${fmtNow()}`;
+  el.mini.textContent = line1 + "\n" + line2;
 }
 
 function renderStatus(s){
@@ -180,8 +169,8 @@ function renderStatus(s){
   if(Number.isFinite(c)) el.co2Val.textContent=String(Math.round(c));
   if(Number.isFinite(so)) el.solarVal.textContent=String(Math.round(so));
   el.ledTxt.textContent='LED: '+(led?'ON':'OFF'); syncButtons(led);
-  renderMiniLine(t,h,c,so);
-  el.ts.textContent = fmtNow();
+  renderMiniBlock(t,h,c,so,s.rssi);
+  el.ts.textContent = ''; // timestamp now embedded in #mini second line
 }
 
 function addRowTop(o,ts){
@@ -251,7 +240,8 @@ function renderChartsAll(){
 
 /* ===== 캐시 즉시 반영 ===== */
 if (lastStatus) { 
-  renderMiniLine(Number(lastStatus.temp), Number(lastStatus.hum), Number(lastStatus.co2), Number(lastStatus.solar));
+  renderMiniBlock(Number(lastStatus.temp), Number(lastStatus.hum), Number(lastStatus.co2), Number(lastStatus.solar), lastStatus.rssi);
+  // also push the lastStatus into the visible KPI immediately
   renderStatus(lastStatus); 
 }
 
@@ -307,7 +297,13 @@ function pushMinuteSample(s, now){
 }
 
 /* ===== 시각 ===== */
-setInterval(()=>{ $('#ts').textContent=(new Date()).toLocaleString('sv-SE').replace('T',' '); },1000);
+setInterval(()=>{
+  // update only the second line timestamp
+  const txt = el.mini.textContent.split('\n')[0] || '';
+  const rssiMatch = el.mini.textContent.split('\n')[1]?.match(/RSSI:\s*([-\d]+)\s*\[dBm\]/);
+  const rssiVal = rssiMatch ? rssiMatch[1] : (lastStatus && lastStatus.rssi != null ? lastStatus.rssi : '--');
+  el.mini.textContent = txt + "\n" + `RSSI: ${rssiVal} [dBm]           ${fmtNow()}`;
+},1000);
 </script>
 </body>
 </html>
