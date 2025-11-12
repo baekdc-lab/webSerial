@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>ESP32 센서 대시보드 (Header • Right Time • 1-line Summary)</title>
+<title>ESP32 센서 대시보드 (Header • Right Time • No Summary Line)</title>
 <script src="https://unpkg.com/mqtt/dist/mqtt.min.js"></script>
 <style>
 :root{--bg:#0b1020;--card:#131a2b;--txt:#e8eefc;--mut:#9fb2d7;--line:#22314f;--btn-bg:#1b2b4a;--btn-border:#2c3e63;--tile:#0f1526;--head:#12203a;--zebra:#10192c}
@@ -70,11 +70,9 @@ th:nth-child(6),td:nth-child(6){width:14%}
 .canvas-wrap canvas{position:absolute;inset:0;width:100%;height:100%}
 @media (min-width:641px){ .canvas-wrap{height:200px} }
 
-/* bottom summary: 1-line summary (no wrap), second line RSSI, right-aligned time */
+/* bottom summary: RSSI only on left, right-aligned time */
 .bottomRow{display:flex;justify-content:space-between;align-items:flex-end;gap:10px;color:var(--mut)}
-#mini{display:flex;flex-direction:column;gap:2px;flex:1;min-width:0;margin:0}
-#mini .l1{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-size:13px;line-height:1.2}
-#mini .l2{white-space:nowrap;font-size:12px;line-height:1.2}
+#mini{white-space:nowrap;font-size:12px;line-height:1.2;margin:0;flex:1;min-width:0}
 .timeText{font-size:12px;white-space:nowrap;margin:0 0 0 8px;text-align:right;min-width:180px}
 </style>
 </head>
@@ -132,10 +130,7 @@ th:nth-child(6),td:nth-child(6){width:14%}
 
   <hr>
   <div class="bottomRow">
-    <p id="mini">
-      <span class="l1">온도:--°C|습도:--%|CO₂:----ppm|일사량:--W/m²</span>
-      <span class="l2">RSSI: -- [dBm]</span>
-    </p>
+    <p id="mini">RSSI: -- [dBm]</p>
     <div id="ts" class="timeText">—</div>
   </div>
 </div></div>
@@ -175,16 +170,9 @@ function syncButtons(on){
   else  { boff.classList.add('active'); bon.classList.add('dim'); }
 }
 
-function renderMini(t,h,c,so,rssi){
-  const tv = Number.isFinite(t)?Math.round(t):'--';
-  const hv = Number.isFinite(h)?Math.round(h):'--';
-  const cv = Number.isFinite(c)?Math.round(c):'----';
-  const sv = Number.isFinite(so)?Math.round(so):'--';
+function renderMini(rssi){
   const r  = (typeof rssi!=='undefined' && rssi!==null)?`${rssi}`:'--';
-  const line1 = `온도:${tv}°C|습도:${hv}%|CO₂:${cv}ppm|일사량:${sv}W/m²`;
-  const line2 = `RSSI: ${r} [dBm]`;
-  el.mini.querySelector('.l1').textContent = line1;
-  el.mini.querySelector('.l2').textContent = line2;
+  el.mini.textContent = `RSSI: ${r} [dBm]`;
 }
 
 function renderStatus(s){
@@ -194,8 +182,8 @@ function renderStatus(s){
   if(Number.isFinite(c)) el.co2Val.textContent=String(Math.round(c));
   if(Number.isFinite(so)) el.solarVal.textContent=String(Math.round(so));
   el.ledTxt.textContent='LED: '+(led?'ON':'OFF'); syncButtons(led);
-  renderMini(t,h,c,so,s.rssi);
-  el.ts.textContent = fmtNow(); // 오른쪽 정렬된 시간
+  renderMini(s.rssi);
+  el.ts.textContent = fmtNow();
 }
 
 function addRowTop(o,ts){
