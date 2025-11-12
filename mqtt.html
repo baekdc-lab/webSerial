@@ -3,102 +3,94 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>ESP32 센서 대시보드 (Portrait-optimized)</title>
+<title>ESP32 센서 대시보드 (Portrait Tight)</title>
 <script src="https://unpkg.com/mqtt/dist/mqtt.min.js"></script>
 <style>
 :root{--bg:#0b1020;--card:#131a2b;--txt:#e8eefc;--mut:#9fb2d7;--line:#22314f;--btn-bg:#1b2b4a;--btn-border:#2c3e63;--tile:#0f1526;--head:#12203a;--zebra:#10192c}
 :root.light{--bg:#f5f7fa;--card:#fff;--txt:#0b1020;--mut:#5a6b8a;--line:#ccd4e0;--btn-bg:#e4e8ef;--btn-border:#b0bacb;--tile:#eef1f7;--head:#d6deec;--zebra:#eef3fb}
 *{box-sizing:border-box}
-body{margin:0;background:var(--bg);color:var(--txt);font:17px/1.5 system-ui,Segoe UI,Roboto,Apple SD Gothic Neo,sans-serif}
-.wrap{max-width:900px;margin:20px auto;padding:0 12px}
-.card{background:var(--card);border-radius:16px;padding:16px;box-shadow:0 10px 30px rgba(0,0,0,.25)}
-h1{margin:0 0 8px;font-size:26px;font-weight:800;display:flex;justify-content:space-between;align-items:center}
-.mut{color:var(--mut);margin:0 0 8px}
-.mut.small{font-size:14px}
-hr{border:0;border-top:1px solid var(--line);margin:14px 0}
-.theme-toggle{cursor:pointer;font-size:22px;user-select:none}
+body{margin:0;background:var(--bg);color:var(--txt);font:16px/1.45 system-ui,Segoe UI,Roboto,Apple SD Gothic Neo,sans-serif}
+.wrap{max-width:900px;margin:16px auto;padding:0 10px}
+.card{background:var(--card);border-radius:16px;padding:14px;box-shadow:0 10px 30px rgba(0,0,0,.25)}
+h1{margin:0 0 6px;font-size:22px;font-weight:800;display:flex;justify-content:space-between;align-items:center}
+.mut{color:var(--mut);margin:0 0 6px}
+.mut.small{font-size:13px}
+hr{border:0;border-top:1px solid var(--line);margin:12px 0}
+.theme-toggle{cursor:pointer;font-size:20px;user-select:none}
 
-/* KPI row: always single horizontal row (scrollable on small screens) */
-.kpi-row{display:flex;gap:10px;overflow-x:auto;-webkit-overflow-scrolling:touch;padding-bottom:4px}
-.kpi-row::-webkit-scrollbar{height:6px}
-.kpi-row::-webkit-scrollbar-thumb{background:var(--line);border-radius:4px}
-.tile{background:var(--tile);border-radius:12px;padding:12px 14px;text-align:center;min-height:86px;display:flex;flex-direction:column;justify-content:center;flex:0 0 160px}
-.kpi-label{font-size:13px;color:var(--mut)}
-.v{font-size:22px;font-weight:800;margin-top:4px}
-.u2{font-size:14px;color:var(--mut);line-height:1.1;margin-top:2px}
+/* ===== KPI: 4-up grid that fits on phone portrait ===== */
+.kpi-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;margin-top:4px}
+.tile{background:var(--tile);border-radius:12px;padding:8px 6px;text-align:center;min-height:72px;display:flex;flex-direction:column;justify-content:center}
+.kpi-label{font-size:12px;color:var(--mut)}
+.v{font-size:18px;font-weight:800;margin-top:2px;letter-spacing:.1px}
+.u2{font-size:12px;color:var(--mut);line-height:1.05;margin-top:1px}
 @media (min-width:641px){
-  .kpi-row{overflow:visible}
-  .tile{flex:1 0 0;min-width:auto}
-}
-@media (max-width:480px){
-  .tile{flex:0 0 140px}
-  .v{font-size:20px}
+  .tile{padding:12px 10px;min-height:84px}
+  .kpi-label{font-size:13px}
+  .v{font-size:22px}
   .u2{font-size:13px}
 }
 
 /* LED */
-.led{display:flex;align-items:center;gap:12px;margin-top:12px;flex-wrap:wrap}
-.btn{border:0;color:#fff;padding:12px 14px;border-radius:12px;cursor:pointer;font-weight:800;min-width:98px;font-size:15px;transition:background-color .08s ease,transform .08s ease}
+.led{display:flex;align-items:center;gap:10px;margin-top:10px;flex-wrap:wrap}
+.btn{border:0;color:#fff;padding:10px 12px;border-radius:12px;cursor:pointer;font-weight:800;min-width:92px;font-size:14px;transition:background-color .08s ease,transform .08s ease}
 .btn.on{background:#2d6bff}.btn.off{background:#32405e}.btn.active{background:#00cc66}.btn.dim{background:#1b2236}
-.led-status{font-size:13px;color:var(--mut);position:relative;top:4px}
+.led-status{font-size:12px;color:var(--mut);position:relative;top:3px}
 
 /* 토글 */
-.btn.toggle{background:var(--btn-bg);border:1px solid var(--btn-border);color:var(--txt);min-width:120px}
-.toggle-row{display:flex;gap:8px;flex-wrap:wrap;margin:8px 0 12px}
+.btn.toggle{background:var(--btn-bg);border:1px solid var(--btn-border);color:var(--txt);min-width:112px}
+.toggle-row{display:flex;gap:8px;flex-wrap:wrap;margin:6px 0 10px}
 
 /* collapsible */
 .collapsible{max-height:0;overflow:hidden;transition:max-height .25s ease,opacity .2s ease;opacity:0}
 .collapsible.open{max-height:2000px;opacity:1}
 
-/* ===== 테이블 ===== */
+/* ===== 테이블 (tight for portrait) ===== */
 .tablewrap{overflow:auto;background:var(--tile);border-radius:14px;padding:0;max-height:52vh}
 table{border-collapse:collapse;width:100%;table-layout:fixed}
 thead th{
   position:sticky;top:0;background:var(--head);z-index:1;
-  padding:9px 6px 8px;text-align:center;white-space:normal;line-height:1.05;
-  font-size:12.5px;font-weight:800;
+  padding:7px 4px 6px;text-align:center;white-space:normal;line-height:1.05;
+  font-size:11.5px;font-weight:800;
 }
-th .t{display:block;letter-spacing:.2px}
-th .u{display:block;color:var(--mut);font-weight:700;font-size:.82em;margin-top:2px}
+th .t{display:block;letter-spacing:.1px}
+th .u{display:block;color:var(--mut);font-weight:700;font-size:.8em;margin-top:2px}
 tbody td{
-  padding:8px 6px;border-bottom:1px solid var(--line);
+  padding:6px 4px;border-bottom:1px solid var(--line);
   text-align:center;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
-  font-size:13.5px;font-variant-numeric:tabular-nums;
+  font-size:12.5px;font-variant-numeric:tabular-nums;
 }
 tbody tr:nth-child(even){background:var(--zebra)}
-th:nth-child(1),td:nth-child(1){width:68px}
-th:nth-child(2),td:nth-child(2){width:72px}
-th:nth-child(3),td:nth-child(3){width:66px}
-th:nth-child(4),td:nth-child(4){width:86px}
-th:nth-child(5),td:nth-child(5){width:100px}
-th:nth-child(6),td:nth-child(6){width:66px}
+/* tighter column widths to fit portrait */
+th:nth-child(1),td:nth-child(1){width:56px}
+th:nth-child(2),td:nth-child(2){width:58px}
+th:nth-child(3),td:nth-child(3){width:58px}
+th:nth-child(4),td:nth-child(4){width:70px}
+th:nth-child(5),td:nth-child(5){width:86px}
+th:nth-child(6),td:nth-child(6){width:52px}
 
-/* Mobile portrait optimization */
+/* Portrait height fit */
 @media (max-width:480px){
-  /* make table fill the remaining viewport height comfortably */
-  .tablewrap{max-height:calc(100vh - 260px)} /* header+tiles+buttons 여유 */
-  thead th{font-size:11.5px;padding:8px 6px 7px}
-  tbody td{font-size:12.5px;padding:7px 6px}
+  .tablewrap{max-height:calc(100vh - 240px)}
 }
-/* very small phones */
 @media (max-width:360px){
-  .tablewrap{max-height:calc(100vh - 280px)}
+  .tablewrap{max-height:calc(100vh - 260px)}
   thead th{font-size:11px}
   tbody td{font-size:12px}
 }
 
 /* 차트 */
-.charts{margin-top:14px;display:grid;grid-template-columns:1fr;gap:12px}
-.chart{background:var(--tile);border-radius:12px;padding:10px}
-.chart h3{margin:0 0 6px;font-size:15px;color:var(--mut)}
+.charts{margin-top:12px;display:grid;grid-template-columns:1fr;gap:10px}
+.chart{background:var(--tile);border-radius:12px;padding:8px}
+.chart h3{margin:0 0 6px;font-size:14px;color:var(--mut)}
 .canvas-wrap{position:relative;width:100%;height:200px}
 .canvas-wrap canvas{position:absolute;inset:0;width:100%;height:100%}
-.legend{display:flex;gap:14px;align-items:center;margin:0 0 6px 2px;color:var(--mut);font-size:12px}
+.legend{display:flex;gap:12px;align-items:center;margin:0 0 6px 2px;color:var(--mut);font-size:12px;flex-wrap:wrap}
 .legend .item{display:flex;align-items:center;gap:6px}
 .swatch{display:inline-block;width:16px;height:6px;border-radius:3px}
 .swatch.c1{background:#7aa0ff}.swatch.c2{background:#ff9a7a}.swatch.c3{background:#9ad67b}.swatch.c4{background:#d0a2ff}
 
-.bottomRow{display:flex;justify-content:space-between;align-items:flex-end;gap:12px;color:var(--mut)}
+.bottomRow{display:flex;justify-content:space-between;align-items:flex-end;gap:10px;color:var(--mut)}
 #mini{white-space:pre-line;font-size:12px;margin:0}
 .timeText{font-size:12px;white-space:nowrap;margin:0 2px 0 0}
 </style>
@@ -109,8 +101,8 @@ th:nth-child(6),td:nth-child(6){width:66px}
   <p class="mut">랜덤 센서(5초) · 1분 평균(60개) · LED 제어</p>
   <p class="mut small" id="mqttState">브로커 연결 중…</p>
 
-  <!-- KPI: always horizontal -->
-  <div class="kpi-row" id="kpiRow">
+  <!-- KPI: 4-up grid, compact -->
+  <div class="kpi-grid">
     <div class="tile">
       <div class="kpi-label">온도</div>
       <div class="v" id="v_temp_val">--</div>
@@ -145,7 +137,7 @@ th:nth-child(6),td:nth-child(6){width:66px}
     <button class="btn toggle" id="toggleGraph">📊 그래프 보기</button>
   </div>
 
-  <div id="tableSection" class="collapsible">
+  <div id="tableSection" class="collapsible open">
     <div class="tablewrap">
       <table>
         <thead>
@@ -221,10 +213,10 @@ function fmtNow(){ const d=new Date(),p=n=>String(n).padStart(2,'0'); return `${
 
 function renderStatus(s){
   const t=Number(s.temp), h=Number(s.hum), c=Number(s.co2), so=Number(s.solar), led=toBool(s.led);
-  if(Number.isFinite(t)) el.tempVal.textContent=Math.round(t);
-  if(Number.isFinite(h)) el.humVal.textContent=Math.round(h);
-  if(Number.isFinite(c)) el.co2Val.textContent=Math.round(c);
-  if(Number.isFinite(so)) el.solarVal.textContent=Math.round(so);
+  if(Number.isFinite(t)) el.tempVal.textContent=String(Math.round(t*10)/10);
+  if(Number.isFinite(h)) el.humVal.textContent=String(Math.round(h));
+  if(Number.isFinite(c)) el.co2Val.textContent=String(Math.round(c));
+  if(Number.isFinite(so)) el.solarVal.textContent=String(Math.round(so));
   el.ledTxt.textContent='LED: '+(led?'ON':'OFF'); syncButtons(led);
   const rssiText=(typeof s.rssi!=='undefined')?`RSSI: ${s.rssi} [dBm]`:'RSSI: -- [dBm]';
   el.mini.textContent=`온도: ${Number.isFinite(t)?Math.round(t):'--'} °C | 습도: ${Number.isFinite(h)?Math.round(h):'--'} % | CO₂: ${Number.isFinite(c)?Math.round(c):'----'} ppm | 일사량: ${Number.isFinite(so)?Math.round(so):'--'} W/m²\n${rssiText}`;
@@ -237,7 +229,7 @@ function addRowTop(o,ts){
   const hh=String(d.getHours()).padStart(2,'0'); const mm=String(d.getMinutes()).padStart(2,'0');
   const tr=document.createElement('tr');
   tr.innerHTML=`<td>${hh}:${mm}</td>
-    <td>${Math.round(Number(o.temp))}</td>
+    <td>${Math.round(Number(o.temp)*10)/10}</td>
     <td>${Math.round(Number(o.hum))}</td>
     <td>${Math.round(Number(o.co2))}</td>
     <td>${Math.round(Number(o.solar))}</td>
@@ -248,7 +240,7 @@ function addRowTop(o,ts){
 
 /* ===== 그래프(단일 캔버스에 4개 시리즈) ===== */
 function renderChart(){
-  if(!$('#graphSection').classList.contains('open')) return;
+  if(!document.getElementById('graphSection').classList.contains('open')) return;
   drawChart(document.getElementById('chAll'), [
     histBuf.map(r=>r.temp??NaN),
     histBuf.map(r=>r.hum??NaN),
@@ -300,10 +292,10 @@ if (lastStatus) renderStatus(lastStatus);
 const brokerUrl = "wss://6c56aefe0ddb4d57977c735f5070abe8.s1.eu.hivemq.cloud:8884/mqtt";
 const mqttOpt = { username:"mqtt_ESP32", password:"gomqtt_ESP32", clientId:"web-"+Math.random().toString(16).slice(2), clean:true, reconnectPeriod:2000 };
 const client = mqtt.connect(brokerUrl, mqttOpt);
-client.on('connect', ()=>{ $('#mqttState').textContent='MQTT 연결 OK'; client.subscribe('esp32/status'); });
-client.on('reconnect', ()=> $('#mqttState').textContent='브로커 재연결 중…');
-client.on('offline',  ()=> $('#mqttState').textContent='브로커 오프라인');
-client.on('error',    e => $('#mqttState').textContent='에러: '+e.message);
+client.on('connect', ()=>{ document.getElementById('mqttState').textContent='MQTT 연결 OK'; client.subscribe('esp32/status'); });
+client.on('reconnect', ()=> document.getElementById('mqttState').textContent='브로커 재연결 중…');
+client.on('offline',  ()=> document.getElementById('mqttState').textContent='브로커 오프라인');
+client.on('error',    e => document.getElementById('mqttState').textContent='에러: '+e.message);
 client.on('message', (topic,payload)=>{
   if(topic!=='esp32/status') return;
   const s = JSON.parse(new TextDecoder().decode(payload));
@@ -313,14 +305,14 @@ client.on('message', (topic,payload)=>{
 });
 
 /* ===== LED 제어 ===== */
-$('#on').onclick  = ()=>{ syncButtons(true);  client.publish('esp32/led','on');  };
-$('#off').onclick = ()=>{ syncButtons(false); client.publish('esp32/led','off'); };
+document.getElementById('on').onclick  = ()=>{ syncButtons(true);  client.publish('esp32/led','on');  };
+document.getElementById('off').onclick = ()=>{ syncButtons(false); client.publish('esp32/led','off'); };
 
 /* ===== 섹션 토글 ===== */
-const secTable=$('#tableSection'), secGraph=$('#graphSection');
-$('#toggleTable').onclick=()=>{ const o=secTable.classList.toggle('open'); $('#toggleTable').textContent=o?'📋 테이블 숨기기':'📋 테이블 보기';
+const secTable=document.getElementById('tableSection'), secGraph=document.getElementById('graphSection');
+document.getElementById('toggleTable').onclick=()=>{ const o=secTable.classList.toggle('open'); document.getElementById('toggleTable').textContent=o?'📋 테이블 숨기기':'📋 테이블 보기';
   if(o && histBuf.length){
-    $('#logtbl').innerHTML='';
+    document.getElementById('logtbl').innerHTML='';
     for(let i=0;i<histBuf.length;i++){
       const r = histBuf[i];
       const ts=new Date(); ts.setMinutes(ts.getMinutes()-(histBuf.length-1-i));
@@ -328,14 +320,14 @@ $('#toggleTable').onclick=()=>{ const o=secTable.classList.toggle('open'); $('#t
     }
   }
 };
-$('#toggleGraph').onclick=()=>{ const o=secGraph.classList.toggle('open'); $('#toggleGraph').textContent=o?'📊 그래프 숨기기':'📊 그래프 보기'; if(o) renderChart(); };
+document.getElementById('toggleGraph').onclick=()=>{ const o=secGraph.classList.toggle('open'); document.getElementById('toggleGraph').textContent=o?'📊 그래프 숨기기':'📊 그래프 보기'; if(o) renderChart(); };
 
 /* ===== 1분 평균 버퍼(최대 60개) ===== */
 let minuteKey=null, minuteSamples=[];
 function pushMinuteSample(s, now){
   const key=now.getHours()*60+now.getMinutes();
   if(minuteKey!==null && key!==minuteKey && minuteSamples.length){
-    const avg=k=>{ const v=minuteSamples.map(x=>+x[k]).filter(Number.isFinite); return v.length?v.reduce((a,b)=>a+b,0)/v.length:NaN; };
+    const avg=k=>{ const v=minuteSamples.map(x=>+x[k]).filter(Number.isFinite); return v.length?v.reduce((a,b,)=>a+b,0)/v.length:NaN; };
     const row={ temp:avg('temp'), hum:avg('hum'), co2:avg('co2'), solar:avg('solar'), led:minuteSamples.at(-1).led };
     addRowTop(row, new Date(now.getFullYear(),now.getMonth(),now.getDate(),Math.floor(minuteKey/60),minuteKey%60,0,0));
     histBuf.push({temp:row.temp, hum:row.hum, co2:row.co2, solar:row.solar});
@@ -348,7 +340,7 @@ function pushMinuteSample(s, now){
 }
 
 /* ===== 시각 ===== */
-setInterval(()=>{ $('#ts').textContent=(new Date()).toLocaleString('sv-SE').replace('T',' '); },1000);
+setInterval(()=>{ document.getElementById('ts').textContent=(new Date()).toLocaleString('sv-SE').replace('T',' '); },1000);
 </script>
 </body>
 </html>
