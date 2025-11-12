@@ -77,7 +77,7 @@ col.co2{width:20%} col.solar{width:22%} col.led{width:14%}
 <body>
 <div class="wrap"><div class="card">
   <h1>ESP32 센서 대시보드 <span class="theme-toggle" id="themeToggle">🌙</span></h1>
-  <p class="mut">랜덤 센서(5초) · 1분 평균(60개) · LED 제어</p>
+  <p class="mut">랜덤 센서 · LED 제어</p>
   <p class="mut small" id="mqttState">브로커 연결 중…</p>
 
   <div class="kpi-grid">
@@ -294,4 +294,5 @@ setInterval(()=>{ el.ts.textContent = fmtNow(); },1000);
 </script>
 </body>
 </html>
+
 
