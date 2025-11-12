@@ -2,7 +2,7 @@
 <html lang="ko">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1">
 <title>ESP32 센서 대시보드</title>
 <script src="https://unpkg.com/mqtt/dist/mqtt.min.js"></script>
 <style>
@@ -20,8 +20,15 @@ hr{border:0;border-top:1px solid var(--line);margin:14px 0}
 
 /* KPI */
 .grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin-top:6px}
-.tile{background:var(--tile);border-radius:12px;padding:12px;text-align:center;min-height:76px}
+.tile{background:var(--tile);border-radius:12px;padding:12px;text-align:center;min-height:86px;display:flex;flex-direction:column;justify-content:center}
 .v{font-size:22px;font-weight:800;margin-top:4px}
+.u2{font-size:14px;color:var(--mut);line-height:1.1;margin-top:2px}
+.kpi-label{font-size:13px;color:var(--mut)}
+@media (max-width:640px){
+  .v{font-size:20px}
+  .u2{font-size:13px}
+  .grid{grid-template-columns:repeat(2,minmax(0,1fr))}
+}
 
 /* LED */
 .led{display:flex;align-items:center;gap:12px;margin-top:12px;flex-wrap:wrap}
@@ -32,10 +39,6 @@ hr{border:0;border-top:1px solid var(--line);margin:14px 0}
 /* 토글 */
 .btn.toggle{background:var(--btn-bg);border:1px solid var(--btn-border);color:var(--txt);min-width:120px}
 .toggle-row{display:flex;gap:8px;flex-wrap:wrap;margin:8px 0 12px}
-
-/* 접힘 섹션 */
-.collapsible{max-height:0;overflow:hidden;transition:max-height .25s ease,opacity .2s ease;opacity:0}
-.collapsible.open{max-height:2000px;opacity:1}
 
 /* ===== 테이블 ===== */
 .tablewrap{overflow:auto;background:var(--tile);border-radius:14px;padding:0;max-height:52vh}
@@ -60,6 +63,13 @@ th:nth-child(4),td:nth-child(4){width:86px}
 th:nth-child(5),td:nth-child(5){width:100px}
 th:nth-child(6),td:nth-child(6){width:66px}
 
+/* Mobile portrait: make table fill safe viewport height */
+@media (max-width:480px){
+  .tablewrap{max-height:calc(100vh - 280px);} /* header+tiles+buttons 여유를 뺀 값 */
+  tbody td{font-size:12.5px;padding:7px 6px}
+  thead th{font-size:12px;padding:8px 6px 7px}
+}
+
 /* 차트 */
 .charts{margin-top:14px;display:grid;grid-template-columns:1fr;gap:12px}
 .chart{background:var(--tile);border-radius:12px;padding:10px}
@@ -83,10 +93,26 @@ th:nth-child(6),td:nth-child(6){width:66px}
   <p class="mut small" id="mqttState">브로커 연결 중…</p>
 
   <div class="grid">
-    <div class="tile"><div>온도</div><div id="v_temp" class="v">-- °C</div></div>
-    <div class="tile"><div>습도</div><div id="v_hum" class="v">-- %</div></div>
-    <div class="tile"><div>CO₂</div><div id="v_co2" class="v">---- ppm</div></div>
-    <div class="tile"><div>일사량</div><div id="v_solar" class="v">-- W/m²</div></div>
+    <div class="tile">
+      <div class="kpi-label">온도</div>
+      <div class="v" id="v_temp_val">--</div>
+      <div class="u2">°C</div>
+    </div>
+    <div class="tile">
+      <div class="kpi-label">습도</div>
+      <div class="v" id="v_hum_val">--</div>
+      <div class="u2">%</div>
+    </div>
+    <div class="tile">
+      <div class="kpi-label">CO₂</div>
+      <div class="v" id="v_co2_val">----</div>
+      <div class="u2">ppm</div>
+    </div>
+    <div class="tile">
+      <div class="kpi-label">일사량</div>
+      <div class="v" id="v_solar_val">--</div>
+      <div class="u2">W/m²</div>
+    </div>
   </div>
 
   <div class="led">
@@ -159,7 +185,7 @@ let lastStatus = JSON.parse(localStorage.getItem('lastStatus')||'null');
 
 const el = {
   mqttState: $('#mqttState'),
-  temp: $('#v_temp'), hum: $('#v_hum'), co2: $('#v_co2'), solar: $('#v_solar'),
+  tempVal: $('#v_temp_val'), humVal: $('#v_hum_val'), co2Val: $('#v_co2_val'), solarVal: $('#v_solar_val'),
   ledTxt: $('#led'), mini: $('#mini'), ts: $('#ts')
 };
 
@@ -177,10 +203,10 @@ function fmtNow(){ const d=new Date(),p=n=>String(n).padStart(2,'0'); return `${
 
 function renderStatus(s){
   const t=Number(s.temp), h=Number(s.hum), c=Number(s.co2), so=Number(s.solar), led=toBool(s.led);
-  if(Number.isFinite(t)) el.temp.textContent=Math.round(t)+' °C';
-  if(Number.isFinite(h)) el.hum.textContent=Math.round(h)+' %';
-  if(Number.isFinite(c)) el.co2.textContent=Math.round(c)+' ppm';
-  if(Number.isFinite(so)) el.solar.textContent=Math.round(so)+' W/m²';
+  if(Number.isFinite(t)) el.tempVal.textContent=Math.round(t);
+  if(Number.isFinite(h)) el.humVal.textContent=Math.round(h);
+  if(Number.isFinite(c)) el.co2Val.textContent=Math.round(c);
+  if(Number.isFinite(so)) el.solarVal.textContent=Math.round(so);
   el.ledTxt.textContent='LED: '+(led?'ON':'OFF'); syncButtons(led);
   const rssiText=(typeof s.rssi!=='undefined')?`RSSI: ${s.rssi} [dBm]`:'RSSI: -- [dBm]';
   el.mini.textContent=`온도: ${Number.isFinite(t)?Math.round(t):'--'} °C | 습도: ${Number.isFinite(h)?Math.round(h):'--'} % | CO₂: ${Number.isFinite(c)?Math.round(c):'----'} ppm | 일사량: ${Number.isFinite(so)?Math.round(so):'--'} W/m²\n${rssiText}`;
@@ -230,7 +256,6 @@ function drawChart(c, series){
   ctx.font='12px system-ui,Segoe UI,Roboto,Apple SD Gothic Neo,sans-serif';
   ctx.textAlign='center'; ctx.textBaseline='top';
   for(let m=0;m<=60;m+=10){const x=padL+plotW*(m/60);ctx.fillText((60-m)==0?'지금':`-${60-m}m`,x,padT+plotH+6);}
-  // y축 스케일(모든 시리즈 합산 기준)
   const vals=[]; series.forEach(a=>a.forEach(v=>{if(Number.isFinite(v))vals.push(v);})); 
   let vmin=Math.min(...(vals.length?vals:[0])), vmax=Math.max(...(vals.length?vals:[1])); if(vmax===vmin){vmax=vmin+1;}
   const pad=(vmax-vmin)*0.1; vmin-=pad; vmax+=pad;
@@ -298,7 +323,6 @@ function pushMinuteSample(s, now){
     histBuf.push({temp:row.temp, hum:row.hum, co2:row.co2, solar:row.solar});
     if(histBuf.length>60) histBuf.shift();
     localStorage.setItem('histBuf', JSON.stringify(histBuf));
-    minuteSamples=[];
     renderChart();
   }
   minuteKey=key;
