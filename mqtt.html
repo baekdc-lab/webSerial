@@ -6,35 +6,60 @@
 <title>ESP32 센서 대시보드 (HiveMQ Public)</title>
 <script src="https://unpkg.com/mqtt/dist/mqtt.min.js"></script>
 <style>
-/* (기존 스타일 유지) */
-:root{--bg:#0b1020;--card:#131a2b;--txt:#e8eefc;--mut:#9fb2d7;--line:#22314f;--btn-bg:#1b2b4a;--btn-border:#2c3e63;--tile:#0f1526;--head:#12203a;--zebra:#10192c}
+:root{--bg:#0b1020;--card:#131a2b;--txt:#e8eefc;--mut:#9fb2d7;--line:#22314f;--tile:#0f1526;--head:#12203a;--zebra:#10192c}
 *{box-sizing:border-box}
 body{margin:0;background:var(--bg);color:var(--txt);font:16px/1.45 system-ui,Segoe UI,Roboto,Apple SD Gothic Neo,sans-serif}
 .wrap{max-width:900px;margin:16px auto;padding:0 10px}
-.card{background:var(--card);border-radius:16px;padding:14px}
+.card{background:var(--card);border-radius:16px;padding:14px;box-shadow:0 10px 30px rgba(0,0,0,.25)}
 h1{margin:0 0 6px;font-size:22px;font-weight:800;display:flex;justify-content:space-between;align-items:center}
 .mut{color:var(--mut)} .mut.small{font-size:13px}
 hr{border:0;border-top:1px solid var(--line);margin:12px 0}
+
+/* KPI */
 .kpi-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:6px;margin-top:2px}
 .tile{background:var(--tile);border-radius:12px;padding:12px 10px;text-align:center;min-height:90px;display:flex;flex-direction:column;justify-content:center}
 .kpi-label{font-size:17px;color:var(--mut)} .v{font-size:26px;font-weight:900;margin-top:2px} .u2{font-size:14px;color:var(--mut)}
+
+/* LED */
 .led{display:flex;align-items:center;gap:10px;margin-top:10px;flex-wrap:wrap}
 .btn{border:0;color:#fff;padding:10px 12px;border-radius:12px;cursor:pointer;font-weight:800;min-width:92px;font-size:14px}
 .btn.on{background:#2d6bff}.btn.off{background:#32405e}.btn.active{background:#00cc66}.btn.dim{background:#1b2236}
 .led-status{font-size:13px;color:var(--mut)}
+
+/* Toggle buttons */
+.toggle-row{display:flex;gap:8px;flex-wrap:wrap;margin:6px 0 10px}
+.btn.toggle{background:#1b2b4a;border:1px solid #2c3e63;color:#e8eefc;min-width:120px}
+
+/* Collapsible sections */
+.collapsible{max-height:0;overflow:hidden;transition:max-height .25s ease,opacity .2s ease;opacity:0}
+.collapsible.open{max-height:2000px;opacity:1}
+
+/* Table */
 .tablewrap{overflow:auto;background:var(--tile);border-radius:14px;padding:0;max-height:52vh;overflow-x:hidden}
 table{border-collapse:collapse;width:100%;table-layout:fixed}
-thead{display:none}            /* 리플래시 시 헤더 감춤 */
-.show-head thead{display:table-header-group} /* 열 때만 표시 */
-thead th{position:sticky;top:0;background:var(--head);z-index:1;padding:7px 4px 6px;text-align:center;font-size:12.5px;font-weight:900}
-tbody td{padding:8px 4px;border-bottom:1px solid var(--line);text-align:center;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-size:14px;font-variant-numeric:tabular-nums}
+thead{display:none}                         /* 리플래시 시 헤더 감춤 */
+.show-head thead{display:table-header-group}/* 열 때만 헤더 표시 */
+.show-head thead th{
+  position:sticky;top:0;background:var(--head);z-index:1;
+  padding:7px 4px 6px;text-align:center;font-size:12.5px;font-weight:900
+}
+tbody td{
+  padding:8px 4px;border-bottom:1px solid var(--line);
+  text-align:center;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+  font-size:14px;font-variant-numeric:tabular-nums
+}
 tbody tr:nth-child(even){background:var(--zebra)}
-col.time{width:14%} col.temp{width:15%} col.hum{width:15%} col.co2{width:20%} col.solar{width:22%} col.led{width:14%}
+col.time{width:14%} col.temp{width:15%} col.hum{width:15%}
+col.co2{width:20%} col.solar{width:22%} col.led{width:14%}
+
+/* Charts */
 .charts{margin-top:12px;display:grid;grid-template-columns:1fr;gap:10px}
 .chart{background:var(--tile);border-radius:12px;padding:8px}
 .chart h3{margin:0 0 6px;font-size:14px;color:var(--mut)}
 .canvas-wrap{position:relative;width:100%;height:160px}
 .canvas-wrap canvas{position:absolute;inset:0;width:100%;height:100%}
+
+/* Footer */
 .bottomRow{display:flex;justify-content:space-between;align-items:flex-end;gap:10px;color:var(--mut)}
 #mini{white-space:nowrap;font-size:12px;line-height:1.2;margin:0;flex:1}
 .timeText{font-size:12px;white-space:nowrap;margin:0 0 0 8px;text-align:right}
@@ -43,7 +68,7 @@ col.time{width:14%} col.temp{width:15%} col.hum{width:15%} col.co2{width:20%} co
 <body>
 <div class="wrap"><div class="card">
   <h1>ESP32 센서 대시보드</h1>
-  <p class="mut">랜덤 센서 · LED 제어</p>
+  <p class="mut">HiveMQ Public · LED 제어</p>
   <p class="mut small" id="mqttState">브로커 연결 중…</p>
 
   <div class="kpi-grid">
@@ -93,42 +118,42 @@ col.time{width:14%} col.temp{width:15%} col.hum{width:15%} col.co2{width:20%} co
 </div></div>
 
 <script>
-// ===== 유틸 =====
+/* ===== 유틸 ===== */
 const $=s=>document.querySelector(s);
-function fmtNow(){ const d=new Date(),p=n=>String(n).padStart(2,'0'); return `${d.getFullYear()}-${p(d.getMonth()+1)}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}:${p(d.getSeconds())}`; }
+function fmtNow(){const d=new Date(),p=n=>String(n).padStart(2,'0');return`${d.getFullYear()}-${p(d.getMonth()+1)}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}:${p(d.getSeconds())}`}
 
-// ===== MQTT 연결 (HiveMQ Public WebSocket) =====
-const brokerUrl = "wss://broker.hivemq.com:8884/mqtt";  // ✅ Public WS(TLS)
-const mqttOpt = {
-  clientId: "web-"+Math.random().toString(16).slice(2),
-  clean: true,
-  reconnectPeriod: 800,
-  keepalive: 20,
-  resubscribe: true
-}; // ✅ user/pass 불필요
-const client = mqtt.connect(brokerUrl, mqttOpt);
+/* ===== MQTT (HiveMQ Public WebSocket) ===== */
+const brokerUrl="wss://broker.hivemq.com:8884/mqtt";  // Public WS(TLS)
+const mqttOpt={
+  clientId:"web-"+Math.random().toString(16).slice(2),
+  clean:true,
+  reconnectPeriod:800,
+  keepalive:20,
+  resubscribe:true
+}; // user/pass 불필요
+const client=mqtt.connect(brokerUrl,mqttOpt);
 
-client.on('connect', ()=>{ $('#mqttState').textContent='MQTT 연결 OK'; client.subscribe('esp32/status'); });
-client.on('reconnect', ()=> $('#mqttState').textContent='브로커 재연결 중…');
-client.on('offline',  ()=> $('#mqttState').textContent='브로커 오프라인');
-client.on('error',    e => $('#mqttState').textContent='에러: '+e.message);
+client.on('connect',()=>{$('#mqttState').textContent='MQTT 연결 OK';client.subscribe('esp32/status');});
+client.on('reconnect',()=>$('#mqttState').textContent='브로커 재연결 중…');
+client.on('offline', ()=>$('#mqttState').textContent='브로커 오프라인');
+client.on('error',   e =>$('#mqttState').textContent='에러: '+e.message);
 
-// ===== LED 제어 — 즉시 반영 + QoS1 =====
+/* ===== LED: 즉시 반응형 + QoS1 ===== */
 const bon=$('#on'), boff=$('#off'), ledTxt=$('#led');
 function setLedUi(on){
-  bon.classList.toggle('active', on); bon.classList.toggle('dim', !on);
-  boff.classList.toggle('active',!on); boff.classList.toggle('dim', on);
+  bon.classList.toggle('active',on); bon.classList.toggle('dim',!on);
+  boff.classList.toggle('active',!on); boff.classList.toggle('dim',on);
   ledTxt.textContent='LED: '+(on?'ON':'OFF');
 }
 function quickLed(cmd, expectOn){
-  setLedUi(expectOn);                                 // 낙관적 업데이트
-  client.publish('esp32/led', cmd, { qos: 1 });       // QoS1
+  setLedUi(expectOn);                              // 클릭 즉시 UI 반영
+  client.publish('esp32/led', cmd, { qos:1 });     // QoS1로 전송
 }
-bon.onclick  = ()=> quickLed('LED_ON',  true);
-boff.onclick = ()=> quickLed('LED_OFF', false);
+bon.onclick = ()=> quickLed('LED_ON',  true);
+boff.onclick= ()=> quickLed('LED_OFF', false);
 
-// ===== 상태 수신 =====
-client.on('message', (topic,payload)=>{
+/* ===== 상태 수신 ===== */
+client.on('message',(topic,payload)=>{
   if(topic!=='esp32/status') return;
   const s = JSON.parse(new TextDecoder().decode(payload));
   renderStatus(s);
@@ -136,32 +161,30 @@ client.on('message', (topic,payload)=>{
   pushMinuteSample(s, new Date());
 });
 
-let histBuf = JSON.parse(localStorage.getItem('histBuf')||'[]');
-let lastStatus = JSON.parse(localStorage.getItem('lastStatus')||'null');
-const el = { tempVal:$('#v_temp_val'), humVal:$('#v_hum_val'), co2Val:$('#v_co2_val'), solarVal:$('#v_solar_val'), mini:$('#mini'), ts:$('#ts') };
-
-function toBool(v){ if(typeof v==='boolean') return v; if(typeof v==='number') return v!==0;
-  if(typeof v==='string'){ const t=v.trim().toLowerCase(); return t==='1'||t==='on'||t==='true'; } return !!v; }
+const el={tempVal:$('#v_temp_val'),humVal:$('#v_hum_val'),co2Val:$('#v_co2_val'),solarVal:$('#v_solar_val'),mini:$('#mini'),ts:$('#ts')};
+function toBool(v){if(typeof v==='boolean')return v;if(typeof v==='number')return v!==0;if(typeof v==='string'){const t=v.trim().toLowerCase();return t==='1'||t==='on'||t==='true';}return !!v;}
 
 function renderStatus(s){
-  el.tempVal.textContent  = String(Math.round(Number(s.temp)));
+  el.tempVal.textContent  = String(Math.round(Number(s.temp)));  // KPI도 정수 원하시면 유지
   el.humVal.textContent   = String(Math.round(Number(s.hum)));
   el.co2Val.textContent   = String(Math.round(Number(s.co2)));
   el.solarVal.textContent = String(Math.round(Number(s.solar)));
-  setLedUi(toBool(s.led));
+  setLedUi(toBool(s.led));                                      // 서버 상태로 확정
   el.mini.textContent = `RSSI: ${('rssi' in s)?s.rssi:'--'} [dBm]`;
   el.ts.textContent   = fmtNow();
 }
 
-// ===== 테이블 토글(리플래시 감춤, 열 때 표시) =====
-const secTable=$('#tableSection'), secGraph=$('#graphSection'), tbl=$('#logtable'), btnTable=$('#toggleTable');
+/* ===== 테이블/그래프 토글 ===== */
+const secTable=$('#tableSection'), secGraph=$('#graphSection'), tbl=$('#logtable'), btnTable=$('#toggleTable'), btnGraph=$('#toggleGraph');
 btnTable.textContent='📋 테이블 보기';
+btnGraph.textContent='📊 그래프 보기';
+
 btnTable.onclick=()=>{
   const opening=!secTable.classList.contains('open');
   secTable.classList.toggle('open');
   btnTable.textContent=opening?'📋 테이블 숨기기':'📋 테이블 보기';
-  tbl.classList.toggle('show-head', opening);
-  if(opening && histBuf.length){
+  tbl.classList.toggle('show-head', opening);   // 열 때만 헤더 표시
+  if(opening && histBuf.length){                // 저장된 이력 재그리기
     $('#logtbl').innerHTML='';
     for(let i=0;i<histBuf.length;i++){
       const r=histBuf[i];
@@ -171,14 +194,20 @@ btnTable.onclick=()=>{
   }
 };
 
-// ===== 1분 평균/표시 =====
+btnGraph.onclick=()=>{
+  const opening=!secGraph.classList.contains('open');
+  secGraph.classList.toggle('open');
+  btnGraph.textContent=opening?'📊 그래프 숨기기':'📊 그래프 보기';
+  if(opening) renderChartsAll();
+};
+
+/* ===== 테이블(1분 평균: 온도만 정수) ===== */
 function addRowTop(o,ts){
-  const tb=$('#logtbl');
-  const d=ts?new Date(ts):new Date();
-  const hh=String(d.getHours()).padStart(2,'0'); const mm=String(d.getMinutes()).padStart(2,'0');
+  const tb=$('#logtbl'); const d=ts?new Date(ts):new Date();
+  const hh=String(d.getHours()).padStart(2,'0'), mm=String(d.getMinutes()).padStart(2,'0');
   const tr=document.createElement('tr');
   tr.innerHTML=`<td>${hh}:${mm}</td>
-    <td>${Math.round(Number(o.temp))}</td>   <!-- 테이블 온도만 정수 -->
+    <td>${Math.round(Number(o.temp))}</td>   <!-- 온도만 정수 -->
     <td>${Math.round(Number(o.hum))}</td>
     <td>${Math.round(Number(o.co2))}</td>
     <td>${Math.round(Number(o.solar))}</td>
@@ -187,25 +216,34 @@ function addRowTop(o,ts){
   while(tb.rows.length>60) tb.deleteRow(tb.rows.length-1);
 }
 let minuteKey=null, minuteSamples=[];
+let histBuf = JSON.parse(localStorage.getItem('histBuf')||'[]');
+
 function pushMinuteSample(s, now){
-  const key=now.getHours()*60+now.getMinutes();
+  const key = now.getHours()*60 + now.getMinutes();
   if(minuteKey!==null && key!==minuteKey && minuteSamples.length){
-    const avg=k=>{ const v=minuteSamples.map(x=>+x[k]).filter(Number.isFinite); return v.length?v.reduce((a,b)=>a+b,0)/v.length:NaN; };
-    const row={ temp:avg('temp'), hum:avg('hum'), co2:avg('co2'), solar:avg('solar'), led:minuteSamples.at(-1).led };
+    const avg = k => {
+      const v = minuteSamples.map(x=>+x[k]).filter(Number.isFinite);
+      return v.length ? v.reduce((a,b)=>a+b,0)/v.length : NaN;
+    };
+    const row = { temp:avg('temp'), hum:avg('hum'), co2:avg('co2'), solar:avg('solar'), led:minuteSamples.at(-1).led };
     addRowTop(row, new Date(now.getFullYear(),now.getMonth(),now.getDate(),Math.floor(minuteKey/60),minuteKey%60,0,0));
     histBuf.push({temp:row.temp, hum:row.hum, co2:row.co2, solar:row.solar});
     if(histBuf.length>60) histBuf.shift();
     localStorage.setItem('histBuf', JSON.stringify(histBuf));
     renderChartsAll();
   }
-  minuteKey=key;
+  minuteKey = key;
   minuteSamples.push({ temp:+s.temp, hum:+s.hum, co2:+s.co2, solar:+s.solar, led:toBool(s.led) });
 }
 
-// ===== 그래프(4개) =====
-const dpr = ()=> window.devicePixelRatio||1;
-function prepCanvas(c){ const r=c.getBoundingClientRect(); const w=Math.max(1,r.width),h=Math.max(1,r.height);
-  c.width=Math.floor(w*dpr()); c.height=Math.floor(h*dpr()); const ctx=c.getContext('2d'); ctx.setTransform(dpr(),0,0,dpr(),0,0); return ctx; }
+/* ===== 그래프(4개) ===== */
+function prepCanvas(c){
+  const dpr = window.devicePixelRatio||1;
+  const r=c.getBoundingClientRect(); const w=Math.max(1,r.width), h=Math.max(1,r.height);
+  c.width=Math.floor(w*dpr); c.height=Math.floor(h*dpr);
+  const ctx=c.getContext('2d'); ctx.setTransform(dpr,0,0,dpr,0,0);
+  return ctx;
+}
 function drawSingleSeries(c, arr, color){
   const ctx=prepCanvas(c); const W=c.clientWidth,H=c.clientHeight;
   const padL=42,padR=10,padT=10,padB=22,plotW=W-padL-padR,plotH=H-padT-padB;
@@ -228,19 +266,20 @@ function drawSingleSeries(c, arr, color){
 }
 function renderChartsAll(){
   if(!document.getElementById('graphSection').classList.contains('open')) return;
-  const tempArr = histBuf.map(r=>r.temp??NaN);
-  const humArr  = histBuf.map(r=>r.hum??NaN);
-  const co2Arr  = histBuf.map(r=>r.co2??NaN);
-  const solArr  = histBuf.map(r=>r.solar??NaN);
+  const tempArr = histBuf.map(r=>r.temp ?? NaN);
+  const humArr  = histBuf.map(r=>r.hum  ?? NaN);
+  const co2Arr  = histBuf.map(r=>r.co2  ?? NaN);
+  const solArr  = histBuf.map(r=>r.solar?? NaN);
   drawSingleSeries(document.getElementById('chTemp'),  tempArr, '#7aa0ff');
   drawSingleSeries(document.getElementById('chHum'),   humArr,  '#ff9a7a');
   drawSingleSeries(document.getElementById('chCO2'),   co2Arr,  '#9ad67b');
   drawSingleSeries(document.getElementById('chSolar'), solArr,  '#d0a2ff');
 }
 
-/* 초기 표시 */
+/* ===== 초기 표시 & 시각 갱신 ===== */
 const last = JSON.parse(localStorage.getItem('lastStatus')||'null');
 if(last){ renderStatus(last); }
+setInterval(()=>{ document.querySelector('#ts').textContent = fmtNow(); },1000);
 </script>
 </body>
 </html>
