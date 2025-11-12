@@ -219,7 +219,7 @@ function addRowTop(o,ts){
   const hh=String(d.getHours()).padStart(2,'0'); const mm=String(d.getMinutes()).padStart(2,'0');
   const tr=document.createElement('tr');
   tr.innerHTML=`<td>${hh}:${mm}</td>
-    <td>${Math.round(Number(o.temp)*10)/10}</td>
+    <td>${Math.round(Number(o.temp))}</td>
     <td>${Math.round(Number(o.hum))}</td>
     <td>${Math.round(Number(o.co2))}</td>
     <td>${Math.round(Number(o.solar))}</td>
@@ -294,3 +294,4 @@ setInterval(()=>{ el.ts.textContent = fmtNow(); },1000);
 </script>
 </body>
 </html>
+
