@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>ESP32 센서 대시보드 (No Table Header • KPI ↑)</title>
+<title>ESP32 센서 대시보드 (Table head: on open only)</title>
 <script src="https://unpkg.com/mqtt/dist/mqtt.min.js"></script>
 <style>
 :root{--bg:#0b1020;--card:#131a2b;--txt:#e8eefc;--mut:#9fb2d7;--line:#22314f;--btn-bg:#1b2b4a;--btn-border:#2c3e63;--tile:#0f1526;--head:#12203a;--zebra:#10192c}
@@ -20,24 +20,18 @@ hr{border:0;border-top:1px solid var(--line);margin:12px 0}
 
 /* KPI */
 .kpi-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:6px;margin-top:2px}
-.tile{background:var(--tile);border-radius:12px;padding:8px 6px;text-align:center;min-height:76px;display:flex;flex-direction:column;justify-content:center}
-.kpi-label{font-size:16px;color:var(--mut)}
-.v{font-size:24px;font-weight:900;margin-top:2px}
-.u2{font-size:14px;color:var(--mut);line-height:1.05;margin-top:0}
-@media (min-width:641px){
-  .tile{padding:12px 10px;min-height:90px}
-  .kpi-label{font-size:17px}
-  .v{font-size:26px}
-  .u2{font-size:14.5px}
-}
+.tile{background:var(--tile);border-radius:12px;padding:12px 10px;text-align:center;min-height:90px;display:flex;flex-direction:column;justify-content:center}
+.kpi-label{font-size:17px;color:var(--mut)}
+.v{font-size:26px;font-weight:900;margin-top:2px}
+.u2{font-size:14.5px;color:var(--mut);line-height:1.05;margin-top:0}
 
 /* LED */
 .led{display:flex;align-items:center;gap:10px;margin-top:10px;flex-wrap:wrap}
-.btn{border:0;color:#fff;padding:10px 12px;border-radius:12px;cursor:pointer;font-weight:800;min-width:92px;font-size:14px;transition:background-color .08s ease,transform .08s ease}
+.btn{border:0;color:#fff;padding:10px 12px;border-radius:12px;cursor:pointer;font-weight:800;min-width:92px;font-size:14px}
 .btn.on{background:#2d6bff}.btn.off{background:#32405e}.btn.active{background:#00cc66}.btn.dim{background:#1b2236}
 .led-status{font-size:13px;color:var(--mut);position:relative;top:2px}
 
-/* 토글 */
+/* 토글 버튼 */
 .btn.toggle{background:var(--btn-bg);border:1px solid var(--btn-border);color:var(--txt);min-width:112px}
 .toggle-row{display:flex;gap:8px;flex-wrap:wrap;margin:6px 0 10px}
 
@@ -45,17 +39,25 @@ hr{border:0;border-top:1px solid var(--line);margin:12px 0}
 .collapsible{max-height:0;overflow:hidden;transition:max-height .25s ease,opacity .2s ease;opacity:0}
 .collapsible.open{max-height:2000px;opacity:1}
 
-/* 테이블 (헤더 항상 숨김) */
+/* 테이블 */
 .tablewrap{overflow:auto;background:var(--tile);border-radius:14px;padding:0;max-height:52vh;overflow-x:hidden}
 table{border-collapse:collapse;width:100%;table-layout:fixed}
-thead{display:none} /* 새로고침해도 헤더 비표시 */
+/* 기본: 헤더 감춤 (리플래시 시 보이지 않음) */
+thead{display:none}
+/* 테이블을 열었을 때만 헤더 표시 */
+.show-head thead{display:table-header-group}
+.show-head thead th{
+  position:sticky;top:0;background:var(--head);z-index:1;
+  padding:7px 4px 6px;text-align:center;line-height:1.05;
+  font-size:12.5px;font-weight:900
+}
 tbody td{
   padding:8px 4px;border-bottom:1px solid var(--line);
   text-align:center;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
-  font-size:14px;font-variant-numeric:tabular-nums;
+  font-size:14px;font-variant-numeric:tabular-nums
 }
 tbody tr:nth-child(even){background:var(--zebra)}
-/* 고정 폭(헤더 숨겨도 정렬 유지) */
+/* 컬럼 폭 고정 */
 col.time{width:14%} col.temp{width:15%} col.hum{width:15%}
 col.co2{width:20%} col.solar{width:22%} col.led{width:14%}
 
@@ -98,9 +100,10 @@ col.co2{width:20%} col.solar{width:22%} col.led{width:14%}
     <button class="btn toggle" id="toggleGraph">📊 그래프 보기</button>
   </div>
 
-  <div id="tableSection" class="collapsible open">
+  <!-- 초기에는 닫힘(헤더도 감춤) -->
+  <div id="tableSection" class="collapsible">
     <div class="tablewrap" role="table" aria-label="센서 로그">
-      <table>
+      <table id="logtable">
         <colgroup>
           <col class="time"><col class="temp"><col class="hum"><col class="co2"><col class="solar"><col class="led">
         </colgroup>
@@ -129,11 +132,9 @@ col.co2{width:20%} col.solar{width:22%} col.led{width:14%}
 </div></div>
 
 <script>
-/* ===== 유틸 ===== */
+/* ===== 유틸/테마 ===== */
 const $=s=>document.querySelector(s);
 function fmtNow(){const d=new Date(),p=n=>String(n).padStart(2,'0');return `${d.getFullYear()}-${p(d.getMonth()+1)}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}:${p(d.getSeconds())}`}
-
-/* ===== 테마 ===== */
 const themeToggle=$('#themeToggle');
 function applyTheme(t){document.documentElement.classList.toggle('light',t==='light');themeToggle.textContent=(t==='light')?'☀️':'🌙';renderChartsAll()}
 applyTheme(localStorage.getItem('theme')||'dark');
@@ -167,7 +168,7 @@ function addRowTop(o,ts){
   while(tb.rows.length>60)tb.deleteRow(tb.rows.length-1);
 }
 
-/* ===== 4 개별 차트 ===== */
+/* ===== 차트 (4개) ===== */
 const dpr=()=>window.devicePixelRatio||1;
 function prepCanvas(c){const r=c.getBoundingClientRect();const w=Math.max(1,r.width),h=Math.max(1,r.height);c.width=Math.floor(w*dpr());c.height=Math.floor(h*dpr());const ctx=c.getContext('2d');ctx.setTransform(dpr(),0,0,dpr(),0,0);return ctx}
 function drawSingleSeries(c,arr,color){
@@ -213,9 +214,21 @@ client.on('message',(topic,payload)=>{
 });
 
 /* ===== 테이블/그래프 토글 & 1분 평균 ===== */
-const secTable=$('#tableSection'),secGraph=$('#graphSection');
-$('#toggleTable').onclick=()=>{const o=secTable.classList.toggle('open');$('#toggleTable').textContent=o?'📋 테이블 숨기기':'📋 테이블 보기';
-  if(o&&histBuf.length){$('#logtbl').innerHTML='';for(let i=0;i<histBuf.length;i++){const r=histBuf[i];const ts=new Date();ts.setMinutes(ts.getMinutes()-(histBuf.length-1-i));addRowTop({...r,led:false},ts)}}};
+const secTable=$('#tableSection'),secGraph=$('#graphSection'),tbl=$('#logtable'),btnTable=$('#toggleTable');
+btnTable.textContent='📋 테이블 보기'; // 초기 상태: 닫힘
+btnTable.onclick=()=>{
+  const opening=!secTable.classList.contains('open');
+  secTable.classList.toggle('open');
+  btnTable.textContent=opening?'📋 테이블 숨기기':'📋 테이블 보기';
+  tbl.classList.toggle('show-head', opening); // 열 때만 헤더 표시
+  if(opening && histBuf.length){
+    $('#logtbl').innerHTML='';
+    for(let i=0;i<histBuf.length;i++){
+      const r=histBuf[i];const ts=new Date();ts.setMinutes(ts.getMinutes()-(histBuf.length-1-i));
+      addRowTop({...r,led:false},ts);
+    }
+  }
+};
 $('#toggleGraph').onclick=()=>{const o=secGraph.classList.toggle('open');$('#toggleGraph').textContent=o?'📊 그래프 숨기기':'📊 그래프 보기';if(o)renderChartsAll()};
 
 let minuteKey=null,minuteSamples=[];
@@ -233,7 +246,7 @@ function pushMinuteSample(s,now){
 
 /* ===== 초기 표시 & 시각 갱신 ===== */
 if(lastStatus){renderStatus(lastStatus)}
-setInterval(()=>{el.ts.textContent=fmtNow()},1000);
+setInterval(()=>{document.querySelector('#ts').textContent=fmtNow()},1000);
 </script>
 </body>
 </html>
