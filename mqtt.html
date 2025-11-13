@@ -199,7 +199,7 @@
       log("MQTT 연결 성공");
 
       // ESP32 상태 토픽 구독
-      const topicStatus = "esp32/status";
+      const topicStatus = "esp32c3/status";
       client.subscribe(topicStatus, (err) => {
         if (err) {
           log("구독 실패: " + err.message);
@@ -261,7 +261,7 @@
         cmdResultEl.textContent = "MQTT가 연결되지 않았습니다.";
         return;
       }
-      const topic = "esp32/led";
+      const topic = "esp32c3/led";
       client.publish(topic, cmd, { qos: 0, retain: false }, (err) => {
         if (err) {
           cmdResultEl.textContent = "전송 실패: " + err.message;
