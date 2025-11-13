@@ -119,16 +119,18 @@
       color: var(--subtle);
       border-radius: 999px;
       border: 1px solid var(--border-soft);
-      padding: 6px 14px;
+      padding: 6px 10px;
       font-size: 0.8rem;
       line-height: 1;
       margin: 0;
       box-shadow: none;
-      white-space: nowrap;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
     }
 
     .theme-toggle-icon {
-      font-size: 1rem;
+      font-size: 1.1rem;
     }
 
     #log {
@@ -162,10 +164,9 @@
 <body data-theme="light">
   <header class="page-header">
     <h1>ESP32-C3 + HiveMQ 데모 보드</h1>
-    <!-- 라이트/다크 모드 토글 버튼 -->
+    <!-- 라이트/다크 모드 토글 버튼 (아이콘만) -->
     <button id="themeToggle" class="theme-toggle" type="button" aria-label="테마 전환">
       <span class="theme-toggle-icon">🌞</span>
-      <span class="theme-toggle-label">라이트 모드</span>
     </button>
   </header>
 
@@ -250,9 +251,8 @@
 
     const btnOn   = $("#btnOn");
     const btnOff  = $("#btnOff");
-    const themeToggleBtn = $("#themeToggle");
+    const themeToggleBtn  = $("#themeToggle");
     const themeToggleIcon = themeToggleBtn.querySelector(".theme-toggle-icon");
-    const themeToggleLabel = themeToggleBtn.querySelector(".theme-toggle-label");
 
     // ── 테마 적용 관련 ─────────────────────────────
     function applyTheme(theme) {
@@ -261,10 +261,8 @@
 
       if (isDark) {
         themeToggleIcon.textContent = "🌙";
-        themeToggleLabel.textContent = "다크 모드";
       } else {
         themeToggleIcon.textContent = "🌞";
-        themeToggleLabel.textContent = "라이트 모드";
       }
     }
 
