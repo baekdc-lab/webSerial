@@ -2,7 +2,7 @@
 <html lang="ko">
 <head>
   <meta charset="UTF-8" />
-  <title>ESP32+MQTT 센서/제어 보드</title>
+  <title>ESP32+MQTT 데모 보드 (broker.hivemq.com)</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <script src="https://unpkg.com/mqtt/dist/mqtt.min.js"></script>
   <style>
@@ -32,9 +32,7 @@
       --border-soft: rgba(148,163,184,0.4);
     }
 
-    * {
-      box-sizing: border-box;
-    }
+    * { box-sizing: border-box; }
 
     body {
       font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
@@ -111,8 +109,16 @@
       box-shadow: none;
     }
 
-    #btnOn { background: #22c55e; color: #fff; box-shadow: 0 2px 6px rgba(34,197,94,0.4); }
-    #btnOff { background: #ef4444; color: #fff; box-shadow: 0 2px 6px rgba(239,68,68,0.4); }
+    #btnOn {
+      background: #22c55e;
+      color: #fff;
+      box-shadow: 0 2px 6px rgba(34,197,94,0.4);
+    }
+    #btnOff {
+      background: #ef4444;
+      color: #fff;
+      box-shadow: 0 2px 6px rgba(239,68,68,0.4);
+    }
 
     .theme-toggle {
       background: transparent;
@@ -123,13 +129,12 @@
       font-size: 0.8rem;
       line-height: 1;
       margin: 0;
-      margin-top: -4px; /* 아이콘 살짝 위로 */
+      margin-top: -4px;
       box-shadow: none;
       display: inline-flex;
       align-items: center;
       justify-content: center;
     }
-
     .theme-toggle-icon {
       font-size: 1.1rem;
     }
@@ -155,17 +160,11 @@
       border-radius: 4px;
       background: rgba(148,163,184,0.15);
     }
-
-    .hint {
-      font-size: 0.8rem;
-      color: var(--muted);
-    }
   </style>
 </head>
 <body data-theme="light">
   <header class="page-header">
-    <h1>ESP32+MQTT 센서/제어 보드</h1>
-    <!-- 라이트/다크 모드 토글 버튼 (아이콘만) -->
+    <h1>ESP32+MQTT 데모 보드</h1>
     <button id="themeToggle" class="theme-toggle" type="button" aria-label="테마 전환">
       <span class="theme-toggle-icon">🌞</span>
     </button>
@@ -178,7 +177,8 @@
       <strong id="mqttState">MQTT 연결 대기 중...</strong>
     </div>
     <div style="margin-top:4px;font-size:0.85rem;color:var(--subtle);">
-      브로커: <code>broker.hivemq.com</code> (ESP32=MQTT 1883)
+      브로커: <code>broker.hivemq.com</code><br>
+      Web: <code>WS 8000</code> / ESP32: <code>1883</code>
     </div>
     <div style="margin-top:4px;font-size:0.8rem;color:var(--muted);">
       장비 상태: <span id="deviceState">알 수 없음</span>
@@ -190,7 +190,7 @@
 
   <!-- 센서값/상태 -->
   <div class="card">
-    <h2 style="font-size:1.1rem;margin-top:0;">센서 상태 (ESP32C3/STATUS)</h2>
+    <h2 style="font-size:1.1rem;margin-top:0;">센서 상태 (esp32c3/status)</h2>
     <div class="grid">
       <div class="metric">
         <div class="metric-label">온도</div>
@@ -221,7 +221,7 @@
 
   <!-- LED 제어 -->
   <div class="card">
-    <h2 style="font-size:1.1rem;margin-top:0;">LED 제어 (ESP32C3/LED)</h2>
+    <h2 style="font-size:1.1rem;margin-top:0;">LED 제어 (esp32c3/led)</h2>
     <button id="btnOn" type="button">LED ON</button>
     <button id="btnOff" type="button">LED OFF</button>
     <div id="cmdResult" style="margin-top:8px;font-size:0.8rem;color:var(--subtle);">-</div>
@@ -255,22 +255,16 @@
     const themeToggleBtn  = $("#themeToggle");
     const themeToggleIcon = themeToggleBtn.querySelector(".theme-toggle-icon");
 
-    // ── 테마 적용 관련 ─────────────────────────────
+    // ── 다크/라이트 모드 ──────────────────────
     function applyTheme(theme) {
       const isDark = theme === "dark";
       document.body.setAttribute("data-theme", theme);
-
-      if (isDark) {
-        themeToggleIcon.textContent = "🌙";
-      } else {
-        themeToggleIcon.textContent = "🌞";
-      }
+      themeToggleIcon.textContent = isDark ? "🌙" : "🌞";
     }
 
     (function initTheme() {
-      const saved = localStorage.getItem("tswell-mqtt-theme");
+      const saved = localStorage.getItem("demo-mqtt-theme");
       let theme = "light";
-
       if (saved === "light" || saved === "dark") {
         theme = saved;
       } else if (window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches) {
@@ -282,7 +276,7 @@
     themeToggleBtn.addEventListener("click", () => {
       const current = document.body.getAttribute("data-theme") || "light";
       const next = current === "dark" ? "light" : "dark";
-      localStorage.setItem("tswell-mqtt-theme", next);
+      localStorage.setItem("demo-mqtt-theme", next);
       applyTheme(next);
     });
 
@@ -295,8 +289,7 @@
 
     function setMqttStatus(ok, text) {
       mqttDotEl.classList.remove("status-ok", "status-bad");
-      if (ok) mqttDotEl.classList.add("status-ok");
-      else    mqttDotEl.classList.add("status-bad");
+      mqttDotEl.classList.add(ok ? "status-ok" : "status-bad");
       mqttStateEl.textContent = text;
     }
 
@@ -310,20 +303,20 @@
       }
     }
 
-    // ── MQTT 연결 설정 ──────────────────────────
-    const brokerUrl = "wss://broker.hivemq.com:8884/mqtt";
-
+    // ── MQTT 설정: broker.hivemq.com (WS 8000) ─────────────────────
+    const brokerUrl = "ws://broker.hivemq.com:8000/mqtt";
     const options = {
       clean: true,
       connectTimeout: 4000,
-      reconnectPeriod: 5000,
+      reconnectPeriod: 5000
+      // demo용 public broker는 username/password 없음
     };
 
     const client = mqtt.connect(brokerUrl, options);
     let lastDeviceMsgAt = null;
 
     client.on("connect", () => {
-      setMqttStatus(true, "MQTT 연결 OK");
+      setMqttStatus(true, "MQTT 연결 OK (broker.hivemq.com)");
       log("MQTT 연결 성공");
 
       const topicStatus = "esp32c3/status";
@@ -354,8 +347,7 @@
 
       const trimmed = text.trim();
       if (!trimmed.startsWith("{")) {
-        // online / offline / Aktif 같은 문자열은 조용히 무시
-        return;
+        return; // online/offline 같은 문자열이면 무시
       }
 
       let data;
@@ -367,12 +359,7 @@
       }
 
       lastDeviceMsgAt = Date.now();
-      if ("alive" in data) {
-        setDeviceState(!!data.alive);
-      } else {
-        // alive 필드 없으면 일단 온라인으로 취급
-        setDeviceState(true);
-      }
+      setDeviceState(data.alive !== false);
 
       if ("temp"  in data) valTemp.textContent  = Number(data.temp).toFixed(1);
       if ("hum"   in data) valHum.textContent   = Number(data.hum).toFixed(1);
@@ -384,11 +371,11 @@
       lastUpdateEl.textContent = new Date().toLocaleString();
     });
 
-    // heartbeat 타임아웃 – 10초 이상 메시지 없으면 오프라인으로 표시
+    // 10초 이상 메시지 없으면 오프라인 표시
     setInterval(() => {
       if (!lastDeviceMsgAt) return;
       const diff = Date.now() - lastDeviceMsgAt;
-      if (diff > 10000) { // 10초
+      if (diff > 10000) {
         setDeviceState(false);
       }
     }, 2000);
