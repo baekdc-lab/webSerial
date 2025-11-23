@@ -6,6 +6,7 @@
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <style>
     :root{
+      /* dark theme (default) */
       --bg:#0b0f14; --panel:#111827; --muted:#2a2f39; --text:#e5e7eb; --dim:#9aa4b2;
       --accent:#3b82f6; --success:#10b981; --danger:#ef4444; --radius:14px; --mono:"ui-monospace",SFMono-Regular,Menlo,Consolas,monospace;
     }
@@ -17,7 +18,7 @@
     header h1{font-size:20px;margin:0;font-weight:700}
     header small{margin-left:auto;color:var(--dim)}
 
-    .grid{display:grid;grid-template-columns: minmax(520px,1fr) 360px;gap:16px}
+    .grid{display:grid;grid-template-columns: minmax(520px,1fr) 460px;gap:16px}
     @media (max-width: 980px){.grid{grid-template-columns:1fr}}
 
     .panel{background:var(--panel);border:1px solid var(--muted);border-radius:var(--radius);box-shadow:0 10px 25px rgba(0,0,0,.35);padding:14px}
@@ -50,13 +51,83 @@
 
     .hint{display:block;margin-top:10px}
     .kbd{padding:.5px 6px;border:1px solid var(--muted);border-bottom-width:2px;border-radius:6px;background:#0f172a;color:var(--dim);font-family:var(--mono)}
-  </style>
+  
+  :root.light{
+      --bg:#f6f7f9;
+      --panel:#ffffff;
+      --muted:#e2e8f0;
+      --text:#0f172a;
+      --dim:#475569;
+      --accent:#2563eb;
+      --success:#059669;
+      --danger:#dc2626;
+  }
+  .light select, .light input[type=text], .light textarea{
+      background:#f8fafc;
+      color:#0f172a;
+      border:1px solid #cbd5e1;
+  }
+  .light #log{
+      background:#e2e8f0;
+      color:#1e293b;
+  }
+  .light .chip{
+      background:#f1f5f9;
+      color:#0f172a;
+      border-color:#cbd5e1;
+  }
+
+
+
+.light #themeToggle{
+    color:#0f172a !important;
+    background:#f1f5f9 !important;
+    border:1px solid #cbd5e1 !important;
+}
+
+
+.light #themeToggle, .light button#themeToggle{
+    color:#0f172a !important;
+    background:#f1f5f9 !important;
+    border:1px solid #cbd5e1 !important;
+}
+
+
+/* Apple-style light mode button fixes */
+.light button,
+.light .btn-primary,
+.light .btn-danger,
+.light .btn-success {
+    background: #f1f5f9 !important;
+    color: #0f172a !important;
+    border: 1px solid #cbd5e1 !important;
+    box-shadow: none !important;
+}
+
+.light button:hover,
+.light .btn-primary:hover,
+.light .btn-danger:hover,
+.light .btn-success:hover {
+    background: #e2e8f0 !important;
+}
+
+.light #themeToggle {
+    background: #f1f5f9 !important;
+    color: #0f172a !important;
+    border: 1px solid #cbd5e1 !important;
+}
+
+</style>
 </head>
 <body>
+
+
+
+
   <div class="container">
     <header>
       <h1>Web Serial Mini Console</h1>
-      <small>HTTPS(또는 localhost) · 크로미움 계열 브라우저 권장</small>
+      <button id="themeToggle" class="btn-ghost" style="margin-left:auto;font-size:18px;">☀️</button>
     </header>
 
     <div class="grid">
@@ -164,6 +235,8 @@
         writableClosed=textEncoder.readable.pipeTo(port.writable).catch(()=>{});
         writer=textEncoder.writable.getWriter();
         setConnectedUI(true); status(`연결됨 @ ${baudRate} baud`);
+        usbConnect();
+        playConnectSound();
         readLoop();
       }catch(err){
         console.error(err); status('연결 실패'); alert('연결 실패:\n'+err); await disconnect(true);
@@ -175,7 +248,9 @@
         if(reader){ try{await reader.cancel()}catch{} try{await readableClosed}catch{} try{reader.releaseLock()}catch{} reader=null }
         if(writer){ try{await writer.close()}catch{} try{await writableClosed}catch{} try{writer.releaseLock()}catch{} writer=null }
         if(port){ try{await port.close()}catch{} port=null }
-      }finally{ setConnectedUI(false); if(!silent) status('해제됨'); }
+      }finally{ setConnectedUI(false); if(!silent) status('해제됨');
+        usbDisconnect();
+        playDisconnectSound(); }
     }
 
     async function readLoop(){
@@ -219,7 +294,7 @@
     function addChip(text){const arr=load(); arr.unshift(String(text)); save(arr); renderChips()}
     function delChip(idx){const arr=load(); arr.splice(idx,1); save(arr); renderChips()}
 
-    el('btnConnect').addEventListener('click',connect);
+    el('btnConnect').addEventListener('click', ()=>{ unlockAudio(); connect(); });
     el('btnDisconnect').addEventListener('click',()=>disconnect());
     el('btnSend').addEventListener('click',()=>sendText(el('tx').value));
     el('btnClear').addEventListener('click',()=>{el('log').value='' });
@@ -237,8 +312,119 @@
     el('importFile').addEventListener('change',(e)=>{const f=e.target.files&&e.target.files[0];if(!f)return;const r=new FileReader();r.onload=()=>{try{const arr=JSON.parse(r.result);if(!Array.isArray(arr))throw new Error('형식 오류');save(arr.map(String));renderChips()}catch(err){alert('가져오기 실패: '+err.message)}};r.readAsText(f);e.target.value=''});
     el('btnClearPresets').addEventListener('click',()=>{if(!confirm('모든 프리셋을 삭제할까요?'))return;save([]);renderChips()});
 
-    setConnectedUI(false); renderChips();
+    setConnectedUI(false); renderChips(); enableDragDrop();
     window.addEventListener('beforeunload',async()=>{await disconnect(true)});
-  </script>
+  
+    // Theme toggle logic
+    const body = document.body;
+    const toggleBtn = document.getElementById('themeToggle');
+
+    function applyTheme(){
+        const isLight = localStorage.getItem('ws_theme') === 'light';
+        document.documentElement.classList.toggle('light', isLight);
+        toggleBtn.textContent = isLight ? '🌙' : '☀️';
+    }
+
+    toggleBtn.addEventListener('click', ()=>{
+        const isLight = localStorage.getItem('ws_theme') === 'light';
+        localStorage.setItem('ws_theme', isLight ? 'dark' : 'light');
+        applyTheme();
+    });
+
+    applyTheme();
+
+
+function playConnectSound(){
+  const a=document.getElementById("sndConnect");
+  if(a) a.play().catch(()=>{});
+}
+function playDisconnectSound(){
+  const a=document.getElementById("sndDisconnect");
+  if(a) a.play().catch(()=>{});
+}
+
+
+// ---- AUDIO UNLOCK (required for Chrome autoplay policy) ----
+function unlockAudio(){
+    const a = document.getElementById("sndConnect");
+    const b = document.getElementById("sndDisconnect");
+
+    if(a){
+        a.play().then(()=>{
+            a.pause();
+            a.currentTime = 0;
+        }).catch(()=>{});
+    }
+    if(b){
+        b.play().then(()=>{
+            b.pause();
+            b.currentTime = 0;
+        }).catch(()=>{});
+    }
+}
+
+
+// ---- WebAudio Beep (always works, not blocked by autoplay) ----
+function beep(freq = 880, duration = 120){
+    const ctx = new (window.AudioContext || window.webkitAudioContext)();
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+
+    osc.type = "sine";
+    osc.frequency.value = freq;
+
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+
+    osc.start();
+    gain.gain.setValueAtTime(0.2, ctx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + duration / 1000);
+    osc.stop(ctx.currentTime + duration / 1000);
+}
+
+
+// Windows USB-style tones
+function usbConnect(){
+    beep(784,120);
+    setTimeout(()=>beep(1046,160),150);
+}
+function usbDisconnect(){
+    beep(587,120);
+    setTimeout(()=>beep(392,160),150);
+}
+
+
+// --- Drag & Drop for presets ---
+function enableDragDrop(){
+    const chips = document.querySelectorAll('#chips .chip');
+    chips.forEach((chip, index)=>{
+        chip.draggable = true;
+        chip.dataset.index = index;
+
+        chip.addEventListener('dragstart', e=>{
+            e.dataTransfer.setData('text/plain', index);
+        });
+    });
+
+    const host = document.getElementById('chips');
+    host.addEventListener('dragover', e=> e.preventDefault());
+
+    host.addEventListener('drop', e=>{
+        e.preventDefault();
+        const from = Number(e.dataTransfer.getData('text/plain'));
+        const toChip = e.target.closest('.chip');
+        if(!toChip) return;
+        const to = Number(toChip.dataset.index);
+
+        const arr = load();
+        const moved = arr.splice(from,1)[0];
+        arr.splice(to,0,moved);
+        save(arr);
+        renderChips(); enableDragDrop();
+        enableDragDrop();
+    });
+}
+
+</script>
 </body>
 </html>
