@@ -1,569 +1,322 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="ko">
 <head>
-<meta charset="utf-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>WebSerial Console — Dark</title>
-
-<style>
-/* ---------------------------------------------------------
-   GLOBAL
---------------------------------------------------------- */
-:root{
-    --bg:#0b0f14;
-    --panel:#111827;
-    --muted:#2a2f39;
-    --text:#e5e7eb;
-    --dim:#9aa4b2;
-    --accent:#3b82f6;
-    --success:#10b981;
-    --danger:#ef4444;
-    --radius:14px;
-    --mono:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
-}
-
-body{
-    margin:0;
-    background:var(--bg);
-    color:var(--text);
-    font:15px/1.45 system-ui,sans-serif;
-}
-
-.container{
-    width:100%;
-    padding:16px;
-    box-sizing:border-box;
-}
-
-/* ---------------------------------------------------------
-   HEADER
---------------------------------------------------------- */
-header{
-    display:flex;
-    align-items:center;
-    gap:10px;
-    margin-bottom:10px;
-}
-header h1{
-    margin:0;
-    font-size:20px;
-    font-weight:700;
-}
-
-/* ---------------------------------------------------------
-   MAIN LAYOUT (flex push)
---------------------------------------------------------- */
-.main-wrap{
-    display:flex;
-    width:100%;
-    gap:16px;
-    transition:all .25s ease;
-}
-
-.console-area{
-    flex:1 1 auto;
-    min-width:200px;
-}
-
-.panel{
-    background:var(--panel);
-    border:1px solid var(--muted);
-    border-radius:var(--radius);
-    padding:14px;
-    box-shadow:0 10px 25px rgba(0,0,0,.35);
-    box-sizing:border-box;
-}
-
-.row{
-    display:flex;
-    gap:10px;
-    align-items:center;
-    flex-wrap:wrap;
-}
-.grow{flex:1 1 auto;}
-
-button{
-    padding:8px 12px;
-    border-radius:10px;
-    border:1px solid var(--muted);
-    background:#0f172a;
-    color:var(--text);
-    cursor:pointer;
-}
-button:hover{border-color:#3b4150;}
-
-.btn-primary{
-    background:linear-gradient(180deg,#2563eb,#1e40af);
-    border-color:#1e3a8a;
-}
-.btn-success{
-    background:linear-gradient(180deg,#059669,#047857);
-}
-.btn-danger{
-    background:linear-gradient(180deg,#b91c1d,#7f1d1d);
-}
-
-select,input[type=text],textarea{
-    background:#0e1622;
-    color:var(--text);
-    border:1px solid var(--muted);
-    border-radius:10px;
-    padding:8px 10px;
-    font-size:14px;
-}
-
-#log{
-    width:100%;
-    height:420px;
-    resize:vertical;
-    box-sizing:border-box;
-    font-family:var(--mono);
-    font-size:15px;
-}
-
-/* ---------------------------------------------------------
-   CONNECT STATUS BOX
---------------------------------------------------------- */
-#statusBox{
-    text-align:right;
-    font-size:14px;
-    margin-bottom:8px;
-    padding:6px 10px;
-    border-radius:8px;
-    border:1px solid var(--muted);
-    background:#0f172a;
-    font-weight:600;
-    display:flex;
-    justify-content:flex-end;
-    align-items:center;
-    gap:8px;
-}
-
-.status-dot{
-    width:10px;
-    height:10px;
-    border-radius:50%;
-    background:#64748b;
-}
-.status-dot.on { background:#10b981; }
-.status-dot.off { background:#ef4444; }
-
-/* ---------------------------------------------------------
-   PRESET PANEL (PC: push layout)
---------------------------------------------------------- */
-#presetPanel{
-    width:0px;
-    overflow:hidden;
-    transition: width .28s ease, height .28s ease;
-}
-
-#presetPanel.open{
-    width:400px;
-}
-
-#presetPanel .inner{
-    width:400px;
-}
-
-/* GROUP HEADER */
-.group-header{
-    font-weight:800;
-    color:#3b82f6;
-    font-size:15px;
-    margin:16px 0 6px 0;
-}
-
-/* CHIP */
-.chip{
-    display:inline-flex;
-    align-items:center;
-    padding:6px 10px;
-    background:#0f172a;
-    border:1px solid var(--muted);
-    border-radius:999px;
-    margin:6px 6px 0 0;
-    cursor:pointer;
-    font-size:13px;
-}
-.chip:hover{border-color:#3b4150;}
-.chip .del{margin-left:8px;cursor:pointer;opacity:0.65;}
-
-.small{font-size:13px;color:var(--dim);}
-
-/* ---------------------------------------------------------
-   🔥 반응형: 768px 이하에서는 프리셋 패널을 아래로 이동
---------------------------------------------------------- */
-@media (max-width: 768px){
-
-    .main-wrap{
-        flex-direction:column;
-    }
-
-    /* 프리셋 패널이 전체 너비 차지 */
-    #presetPanel{
-        width:100%!important;
-        height:0px;
-    }
-
-    #presetPanel.open{
-        height:auto;
-        width:100%!important;
-    }
-
-    #presetPanel .inner{
-        width:100%!important;
-    }
-
-}
-</style>
+  <meta charset='UTF-8'>
+  <meta name='viewport' content='width=device-width, initial-scale=1.0'>
+  <title>WebSerial Console (CMD Click Send)</title>
+  <script src='https://cdn.tailwindcss.com'></script>
 </head>
-<body>
 
-<div class="container">
+<body class='bg-gray-900 text-gray-100 p-5'>
+<div id='mainLayout' class='flex flex-row gap-6 w-full'>
 
-<header>
-    <h1>WebSerial Console</h1>
-    <button id="btnPanelToggle" class="btn-primary">프리셋</button>
-</header>
+  <!-- LEFT PANEL -->
+  <div class='w-[65%] bg-gray-800 p-5 rounded-xl shadow-lg border border-gray-700'>
+    <h2 class='text-3xl font-bold mb-4'>WebSerial Console</h2>
 
-<div class="main-wrap">
-
-    <!-- LEFT AREA -->
-    <div class="console-area">
-
-        <!-- CONNECT STATUS -->
-        <div id="statusBox">
-            <span class="status-dot"></span>
-            <span id="statusText">대기중</span>
+    <div class='flex justify-between mb-4 items-end'>
+      <div class='flex gap-4 items-end'>
+        <div>
+          <label class='text-lg'>Baud</label>
+          <select id='baud' class='bg-gray-700 border border-gray-600 rounded px-2 py-1 w-24'>
+            <option>9600</option>
+            <option selected>115200</option>
+          </select>
         </div>
 
-        <section class="panel">
+        <div>
+          <label class='text-lg'>끝문자</label>
+          <select id='ending' class='bg-gray-700 border border-gray-600 rounded px-2 py-1 w-28'>
+            <option value='\n'>LF (\n)</option>
+            <option value='\r'>CR (\r)</option>
+            <option value='\r\n' selected>CRLF (\r\n)</option>
+          </select>
+        </div>
+      </div>
 
-            <div class="row" style="margin-bottom:10px;">
-                <label>Baud</label>
-                <select id="baud">
-                    <option>115200</option><option>57600</option>
-                    <option>38400</option><option>19200</option>
-                    <option>9600</option>
-                </select>
-
-                <label>끝문자</label>
-                <select id="ending">
-                    <option value="">없음</option>
-                    <option value="\n">LF</option>
-                    <option value="\r\n" selected>CRLF</option>
-                    <option value="\r">CR</option>
-                </select>
-
-                <span class="grow"></span>
-
-                <button id="btnConnect" class="btn-primary">연결</button>
-                <button id="btnDisconnect" disabled>해제</button>
-            </div>
-
-            <textarea id="log" readonly></textarea>
-
-            <div class="row" style="margin-top:10px;">
-                <button id="btnClear">지우기</button>
-                <button id="btnSave">저장</button>
-                <span class="grow"></span>
-                <label class="small">
-                    <input type="checkbox" id="chkAutoscroll" checked> 자동 스크롤
-                </label>
-            </div>
-
-            <div class="row" style="margin-top:10px;">
-                <input id="tx" class="grow" type="text" placeholder="메시지 입력…" />
-                <button id="btnSend" class="btn-success" disabled>전송</button>
-            </div>
-
-        </section>
+      <div class='flex gap-2'>
+        <button id='connectBtn' class='bg-blue-600 hover:bg-blue-500 px-4 py-2 rounded'>포트 연결</button>
+        <button id='disconnectBtn' class='bg-gray-600 px-4 py-2 rounded cursor-default' disabled>해제됨</button>
+      </div>
     </div>
 
-    <!-- RIGHT PRESET PANEL -->
-    <aside id="presetPanel">
-        <div class="inner panel">
-            <h3 style="margin-top:0; font-size:16px;">프리셋</h3>
+    <div id='serialOutput'
+        class='bg-black text-green-400 p-3 rounded-lg h-[40rem] overflow-y-auto font-mono text-lg whitespace-pre-wrap mb-4 leading-snug'></div>
 
-            <div class="row" style="margin-bottom:10px;">
-                <input id="presetText" class="grow" type="text" placeholder="예: STATUS" />
-                <button id="btnAdd" class="btn-primary">추가</button>
-            </div>
+    <div class='flex gap-3 mb-3'>
+      <input id='msgInput' type='text' placeholder='메시지 입력...'
+            class='flex-1 bg-gray-700 border border-gray-600 rounded px-3 py-2'>
+      <button id='sendBtn' class='bg-green-600 hover:bg-green-500 px-4 py-2 rounded'>전송</button>
+    </div>
 
-            <div class="row" style="margin-bottom:10px;">
-                <button id="btnExport">내보내기</button>
-                <button id="btnImport">가져오기</button>
-                <input type="file" id="importFile" accept="application/json" style="display:none">
-                <span class="grow"></span>
-                <button id="btnClearPresets" class="btn-danger">전체 삭제</button>
-            </div>
+    <div class='flex items-center gap-4'>
+      <button id='clearBtn' class='bg-gray-700 px-3 py-1 rounded hover:bg-gray-600'>지우기</button>
+      <label class='flex items-center gap-2'>
+        <input type='checkbox' id='autoScroll' checked> 자동 스크롤
+      </label>
+    </div>
+  </div>
 
-            <div id="chips"></div>
-        </div>
-    </aside>
+  <!-- RIGHT PANEL -->
+  <div class='w-[35%] bg-gray-800 p-5 rounded-xl shadow-lg border border-gray-700'>
+    <h2 class='text-xl font-bold mb-4'>프리셋</h2>
 
-</div>
-</div>
+    <div class='flex gap-2 mb-4'>
+      <button id='importPreset' class='bg-gray-700 px-3 py-2 rounded hover:bg-gray-600'>가져오기</button>
+      <button id='exportPreset' class='bg-gray-700 px-3 py-2 rounded hover:bg-gray-600'>내보내기</button>
+      <button id='deletePreset' class='bg-black hover:bg-gray-900 px-3 py-2 rounded text-white'>전체 삭제</button>
+    </div>
+
+    <div class='flex gap-2 mb-4'>
+      <input id='cmdInput' type='text' placeholder='Command'
+            class='flex-1 bg-gray-700 border border-gray-600 rounded px-3 py-2'>
+      <button id='addCmd' class='bg-blue-600 hover:bg-blue-500 px-4 py-2 rounded'>추가</button>
+    </div>
+
+    <div id='groupsContainer' class='flex flex-col gap-6'></div>
+  </div>
+
+</div> <!-- END MAIN LAYOUT -->
 
 <script>
-/* =========================================================
-   PRESET STORAGE
-========================================================= */
-const LS_KEY = "ws_presets_v6";
-const load = () => JSON.parse(localStorage.getItem(LS_KEY) || "[]");
-const save = arr => localStorage.setItem(LS_KEY, JSON.stringify(arr));
-
-/* =========================================================
-   PANEL TOGGLE (색 반전)
-========================================================= */
-const btnPanelToggle = document.getElementById("btnPanelToggle");
-const presetPanel = document.getElementById("presetPanel");
-
-btnPanelToggle.onclick = () => {
-
-    const open = presetPanel.classList.toggle("open");
-
-    if(open){
-        btnPanelToggle.textContent = "프리셋 닫기";
-        btnPanelToggle.classList.remove("btn-primary");
-    } else {
-        btnPanelToggle.textContent = "프리셋";
-        btnPanelToggle.classList.add("btn-primary");
-    }
-};
-
-/* =========================================================
-   RENDER PRESETS (GROUP 지원)
-========================================================= */
-function renderChips(){
-    const box = document.getElementById("chips");
-    box.innerHTML = "";
-
-    const presets = load();
-
-    if (!presets.length){
-        box.innerHTML = `<div class="small">프리셋을 추가하세요.</div>`;
-        return;
-    }
-
-    presets.forEach((text, idx)=>{
-        
-        if(text.startsWith("[GROUP] ")){
-            const title = text.replace("[GROUP] ","");
-
-            const header = document.createElement("div");
-            header.className = "group-header";
-            header.textContent = title;
-
-            box.appendChild(header);
-            return;
-        }
-
-        const chip = document.createElement("div");
-        chip.className = "chip";
-        chip.innerHTML = text + ` <span class="del">✕</span>`;
-        chip.onclick = ()=> sendText(text);
-
-        chip.querySelector(".del").onclick = (e)=>{
-            e.stopPropagation();
-            const arr = load();
-            arr.splice(idx,1);
-            save(arr);
-            renderChips();
-        };
-
-        box.appendChild(chip);
-    });
-}
-
-document.getElementById("btnAdd").onclick = ()=>{
-    const v=document.getElementById("presetText").value.trim();
-    if(!v) return;
-    const arr=load();
-    arr.unshift(v);
-    save(arr);
-    renderChips();
-    document.getElementById("presetText").value="";
-};
-
-document.getElementById("btnExport").onclick = ()=>{
-    const blob=new Blob([JSON.stringify(load(),null,2)],{type:"application/json"});
-    const a=document.createElement("a");
-    a.href=URL.createObjectURL(blob);
-    a.download="presets.json";
-    a.click();
-};
-
-document.getElementById("btnImport").onclick =
- ()=> document.getElementById("importFile").click();
-
-document.getElementById("importFile").onchange = (e)=>{
-    const f=e.target.files[0];
-    if(!f) return;
-
-    const r=new FileReader();
-    r.onload=()=>{
-        try{
-            const json=JSON.parse(r.result);
-            if(!Array.isArray(json)) throw "형식 오류";
-            save(json);
-            renderChips();
-        }catch(err){ alert("가져오기 실패: "+err); }
-    };
-    r.readAsText(f);
-};
-
-document.getElementById("btnClearPresets").onclick = ()=>{
-    if(confirm("모두 삭제합니까?")){
-        save([]);
-        renderChips();
-    }
-};
-
-/* =========================================================
-   Windows-style BEEP SOUNDS
-========================================================= */
-function beep(freq = 880, duration = 120){
-    const ctx = new (window.AudioContext || window.webkitAudioContext)();
-    const osc = ctx.createOscillator();
-    const gain = ctx.createGain();
-
-    osc.frequency.value = freq;
-    osc.type = "sine";
-
-    osc.connect(gain);
-    gain.connect(ctx.destination);
-
-    osc.start();
-    gain.gain.setValueAtTime(0.25, ctx.currentTime);
-    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + duration/1000);
-    osc.stop(ctx.currentTime + duration/1000);
-}
-
-function playConnectSound(){
-    beep(784,120);
-    setTimeout(()=>beep(1046,160),120);
-}
-
-function playDisconnectSound(){
-    beep(587,120);
-    setTimeout(()=>beep(392,160),120);
-}
-
-/* =========================================================
-   WebSerial CORE
-========================================================= */
 let port, reader, writer;
+const decoder = new TextDecoder();
+const encoder = new TextEncoder();
+let presetData = {};
 
-const statusDot = document.querySelector("#statusBox .status-dot");
-const statusText = document.getElementById("statusText");
+function safeEnding(){ return document.getElementById("ending").value; }
 
-function updateStatus(mode){
-    if(mode==="connect"){
-        statusDot.classList.add("on");
-        statusDot.classList.remove("off");
-        statusText.textContent = "연결됨";
-    } else if(mode==="disconnect"){
-        statusDot.classList.remove("on");
-        statusDot.classList.add("off");
-        statusText.textContent = "해제됨";
-    } else {
-        statusDot.classList.remove("on");
-        statusDot.classList.remove("off");
-        statusText.textContent = "대기중";
-    }
-}
+/* ============================================================
+   IMPORT LOGIC — PROPER CMD PARSING
+============================================================ */
+document.getElementById("importPreset").onclick = () => {
+  const input = document.createElement("input");
+  input.type = "file";
+  input.accept = ".txt,application/json";
 
-async function connect(){
-    try{
-        port = await navigator.serial.requestPort();
-        await port.open({ baudRate:Number(document.getElementById("baud").value) });
+  input.onchange = (e) => {
+    const file = e.target.files[0];
+    const reader2 = new FileReader();
 
-        const dec = new TextDecoderStream();
-        port.readable.pipeTo(dec.writable);
-        reader = dec.readable.getReader();
+    reader2.onload = () => {
+      let text = reader2.result.trim();
 
-        const enc = new TextEncoderStream();
-        enc.readable.pipeTo(port.writable);
-        writer = enc.writable.getWriter();
+      try {
+        let json = JSON.parse(text);
+        if (Array.isArray(json)) presetData = { "Default": json };
+        else if (typeof json === "object") presetData = json;
+        savePresets(); renderGroups(); return;
+      } catch(e) {}
 
-        document.getElementById("btnConnect").disabled = true;
-        document.getElementById("btnDisconnect").disabled = false;
-        document.getElementById("btnSend").disabled = false;
+      text = text.replace(/^\{|\}$/g, "").trim();
 
-        updateStatus("connect");
-        playConnectSound();
-        readLoop();
+      let lines = text
+        .split(/\r?\n/)
+        .map(v => v.trim())
+        .filter(v => v.length > 0)
+        .map(v => v.replace(/,$/, ""))
+        .map(v => v.replace(/^"|"$/g, ""))
+        .filter(v => v.length > 0);
 
-    }catch(err){
-        alert("연결 실패\n"+err);
-    }
-}
+      presetData = { "Default": lines };
+      savePresets();
+      renderGroups();
+    };
 
-async function disconnect(){
-    try{
-        if(reader){ await reader.cancel(); reader=null; }
-        if(writer){ await writer.close(); writer=null; }
-        if(port){ await port.close(); port=null; }
-    }catch{}
+    reader2.readAsText(file);
+  };
 
-    document.getElementById("btnConnect").disabled = false;
-    document.getElementById("btnDisconnect").disabled = true;
-    document.getElementById("btnSend").disabled = true;
+  input.click();
+};
 
-    updateStatus("disconnect");
-    playDisconnectSound();
-}
+/* ============================================================
+   SERIAL / UI LOGIC
+============================================================ */
 
 async function readLoop(){
-    while(port && reader){
-        const {value,done} = await reader.read();
-        if(done) break;
-        if(value) appendLog(value);
+  try{
+    reader = port.readable.getReader();
+    const out = document.getElementById("serialOutput");
+
+    while(true){
+      const { value, done } = await reader.read();
+      if(done) break;
+
+      let t = decoder.decode(value);
+      t = t.replace(/ERROR/gi, m => `⚠️ ${m}`);
+      t = t.replace(/OK/gi, m => `🟢 ${m}`);
+      out.innerHTML += t;
+
+      if(document.getElementById("autoScroll").checked)
+        out.scrollTop = out.scrollHeight;
     }
+  } catch(err){ console.log("⚠️ 포트 끊김:", err); }
+
+  updateConnectionUI(false);
+  try{ if(reader) reader.releaseLock(); }catch(e){}
 }
 
-function appendLog(t){
-    const log=document.getElementById("log");
-    log.value+=t;
-    if(document.getElementById("chkAutoscroll").checked)
-        log.scrollTop=log.scrollHeight;
-}
-
-function sendText(txt){
-    if(!writer) return alert("연결 필요");
-    writer.write(txt + document.getElementById("ending").value);
-}
-
-/* BUTTON HOOK */
-document.getElementById("btnConnect").onclick = connect;
-document.getElementById("btnDisconnect").onclick = disconnect;
-document.getElementById("btnSend").onclick =
- ()=> sendText(document.getElementById("tx").value);
-
-document.getElementById("btnClear").onclick =
- ()=> document.getElementById("log").value="";
-
-document.getElementById("btnSave").onclick = ()=>{
-    const blob=new Blob([document.getElementById("log").value],{type:"text/plain"});
-    const a=document.createElement("a");
-    a.href=URL.createObjectURL(blob);
-    a.download="log.txt";
-    a.click();
+document.getElementById("connectBtn").onclick = async () => {
+  try{
+    port = await navigator.serial.requestPort();
+    await port.open({ baudRate:Number(document.getElementById("baud").value) });
+    writer = port.writable.getWriter();
+    readLoop();
+    updateConnectionUI(true);
+  }catch(e){ alert("연결 실패: " + e); }
 };
 
-/* Enter to Send */
-document.getElementById("tx").onkeydown = (e)=>{
-    if(e.key==="Enter" && !e.shiftKey){
-        e.preventDefault();
-        sendText(document.getElementById("tx").value);
-    }
+document.getElementById("disconnectBtn").onclick = async () => {
+  try{
+    if(reader) await reader.cancel();
+    if(writer) await writer.close();
+    if(port) await port.close();
+  }catch(e){}
+  updateConnectionUI(false);
 };
 
-/* INIT */
-renderChips();
-updateStatus("idle");
+document.getElementById("sendBtn").onclick = () => {
+  if(!writer) return alert("포트가 열려 있지 않습니다.");
+  writer.write(encoder.encode(document.getElementById("msgInput").value + safeEnding()));
+};
 
+document.getElementById("msgInput").addEventListener("keydown", e => {
+  if(e.key === "Enter"){
+    e.preventDefault();
+    document.getElementById("sendBtn").click();
+  }
+});
+
+document.getElementById("clearBtn").onclick = () => {
+  document.getElementById("serialOutput").textContent = "";
+};
+
+function savePresets(){ localStorage.setItem("presetGroups", JSON.stringify(presetData)); }
+function loadPresets(){ presetData = JSON.parse(localStorage.getItem("presetGroups") || "{}"); renderGroups(); }
+
+/* ============================================================
+   RENDER PRESETS — CMD CLICK = AUTO SEND
+============================================================ */
+function renderGroups(){
+  const container = document.getElementById("groupsContainer");
+  container.innerHTML = "";
+
+  Object.entries(presetData).forEach(([group, cmds]) => {
+    const box = document.createElement("div");
+    box.className = "bg-gray-700 p-3 rounded-lg border border-gray-600";
+
+    const header = document.createElement("div");
+    header.className = "flex justify-between items-center mb-2";
+
+    const title = document.createElement("h3");
+    title.className = "font-semibold text-blue-300";
+    title.textContent = group;
+
+    const groupDelete = document.createElement("button");
+    groupDelete.innerHTML = "&#10005;";
+    groupDelete.className =
+      "w-6 h-6 flex items-center justify-center bg-black text-white rounded-full text-sm hover:bg-gray-900";
+    groupDelete.onclick = () => {
+      if(confirm(`'${group}' 그룹 전체 삭제?`)){
+        delete presetData[group];
+        savePresets();
+        renderGroups();
+      }
+    };
+
+    header.appendChild(title);
+    header.appendChild(groupDelete);
+
+    const list = document.createElement("div");
+    list.className = "flex flex-wrap gap-2";
+
+    cmds.forEach((cmd, index) => {
+      const tag = document.createElement("div");
+      tag.className =
+        "inline-flex items-center bg-gray-600 text-white px-3 py-1 rounded-full gap-2 cursor-pointer";
+
+      const textSpan = document.createElement("span");
+      textSpan.textContent = cmd;
+      textSpan.onclick = () => {
+        if (!writer) return alert("포트가 열려 있지 않습니다.");
+        writer.write(encoder.encode(cmd + safeEnding()));
+      };
+
+      const delBtn = document.createElement("button");
+      delBtn.innerHTML = "&#10005;";
+      delBtn.className =
+        "w-4 h-4 flex items-center justify-center bg-black text-white rounded-full text-xs hover:bg-gray-900";
+
+      delBtn.onclick = () => {
+        presetData[group].splice(index,1);
+        if(presetData[group].length === 0){
+          delete presetData[group];
+        }
+        savePresets();
+        renderGroups();
+      };
+
+      tag.appendChild(textSpan);
+      tag.appendChild(delBtn);
+      list.appendChild(tag);
+    });
+
+    box.appendChild(header);
+    box.appendChild(list);
+    container.appendChild(box);
+  });
+}
+
+loadPresets();
+
+document.getElementById("addCmd").onclick = () => {
+  const cmd = document.getElementById("cmdInput").value.trim();
+  if(!cmd) return;
+  if(!presetData["Default"]) presetData["Default"] = [];
+  presetData["Default"].push(cmd);
+  savePresets();
+  renderGroups();
+  document.getElementById("cmdInput").value = "";
+};
+
+document.getElementById("deletePreset").onclick = () => {
+  if(!confirm("모든 그룹과 CMD가 삭제됩니다. 계속하시겠습니까?")) return;
+  presetData = {};
+  savePresets();
+  renderGroups();
+};
+
+document.getElementById("exportPreset").onclick = () => {
+  const blob = new Blob([JSON.stringify(presetData,null,2)],{type:"application/json"});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = "presets.json";
+  a.click();
+};
+
+function updateConnectionUI(connected){
+  const c = document.getElementById("connectBtn");
+  const d = document.getElementById("disconnectBtn");
+
+  if(connected){
+    c.disabled = true;
+    c.className = "bg-green-600 hover:bg-green-500 px-4 py-2 rounded cursor-default";
+    c.textContent = "연결됨";
+
+    d.disabled = false;
+    d.className = "bg-red-600 hover:bg-red-500 px-4 py-2 rounded";
+    d.textContent = "해제";
+  } else {
+    c.disabled = false;
+    c.className = "bg-blue-600 hover:bg-blue-500 px-4 py-2 rounded";
+    c.textContent = "포트 연결";
+
+    d.disabled = true;
+    d.className = "bg-gray-600 px-4 py-2 rounded cursor-default";
+    d.textContent = "해제됨";
+  }
+}
 </script>
-</body>
-</html>
+
+</body></html>
