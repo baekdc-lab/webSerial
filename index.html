@@ -17,16 +17,16 @@
     <div class='flex justify-between mb-4 items-end'>
       <div class='flex gap-4 items-end'>
         <div>
-          <label class='text-lg'>Baud</label>
-          <select id='baud' class='bg-gray-700 border border-gray-600 rounded px-2 py-1 w-24'>
+          <label class='text-sm'>Baud</label>
+          <select id='baud' class='bg-gray-700 border border-gray-600 rounded px-2 py-0.5 w-24'>
             <option>9600</option>
             <option selected>115200</option>
           </select>
         </div>
 
         <div>
-          <label class='text-lg'>끝문자</label>
-          <select id='ending' class='bg-gray-700 border border-gray-600 rounded px-2 py-1 w-28'>
+          <label class='text-sm'>끝문자</label>
+          <select id='ending' class='bg-gray-700 border border-gray-600 rounded px-2 py-0.5 w-28'>
             <option value='\n'>LF (\n)</option>
             <option value='\r'>CR (\r)</option>
             <option value='\r\n' selected>CRLF (\r\n)</option>
@@ -35,22 +35,21 @@
       </div>
 
       <div class='flex gap-2'>
-        <button id='connectBtn' class='bg-blue-600 hover:bg-blue-500 px-4 py-2 rounded'>포트 연결</button>
-        <button id='disconnectBtn' class='bg-gray-600 px-4 py-2 rounded cursor-default' disabled>해제됨</button>
+        <button id='connectBtn' class='bg-blue-600 hover:bg-blue-500 px-4 py-0.5 rounded'>포트 연결</button>
+        <button id='disconnectBtn' class='bg-gray-600 px-4 py-0.5 rounded cursor-default' disabled>해제됨</button>
       </div>
     </div>
 
-    <div id='serialOutput'
-        class='bg-black text-green-400 p-3 rounded-lg h-[40rem] overflow-y-auto font-mono text-lg whitespace-pre-wrap mb-4 leading-snug'></div>
+    <div id='serialOutput' class="bg-[#1A1A1A] p-3 rounded-lg h-[36rem] overflow-y-auto whitespace-pre-wrap mb-4 font-[FiraCode] font-thin text-white text-[15px] leading-[1.5]"></div>
 
     <div class='flex gap-3 mb-3'>
       <input id='msgInput' type='text' placeholder='메시지 입력...'
-            class='flex-1 bg-gray-700 border border-gray-600 rounded px-3 py-2'>
-      <button id='sendBtn' class='bg-green-600 hover:bg-green-500 px-4 py-2 rounded'>전송</button>
+            class='flex-1 bg-gray-700 border border-gray-600 rounded px-3 py-0.5'>
+      <button id='sendBtn' class='bg-green-600 hover:bg-green-500 px-4 py-0.5 rounded'>전송</button>
     </div>
 
     <div class='flex items-center gap-4'>
-      <button id='clearBtn' class='bg-gray-700 px-3 py-1 rounded hover:bg-gray-600'>지우기</button>
+      <button id='clearBtn' class='bg-gray-700 px-3 py-0.5 rounded hover:bg-gray-600'>지우기</button>
       <label class='flex items-center gap-2'>
         <input type='checkbox' id='autoScroll' checked> 자동 스크롤
       </label>
@@ -58,19 +57,19 @@
   </div>
 
   <!-- RIGHT PANEL -->
-  <div class='w-[35%] bg-gray-800 p-5 rounded-xl shadow-lg border border-gray-700'>
+  <div class='w-[35%] bg-gray-800 p-5 rounded-xl shadow-lg border border-gray-700 text-sm'>
     <h2 class='text-xl font-bold mb-4'>프리셋</h2>
 
     <div class='flex gap-2 mb-4'>
-      <button id='importPreset' class='bg-gray-700 px-3 py-2 rounded hover:bg-gray-600'>가져오기</button>
-      <button id='exportPreset' class='bg-gray-700 px-3 py-2 rounded hover:bg-gray-600'>내보내기</button>
-      <button id='deletePreset' class='bg-black hover:bg-gray-900 px-3 py-2 rounded text-white'>전체 삭제</button>
+      <button id='importPreset' class='bg-gray-700 px-3 py-0.5 rounded hover:bg-gray-600'>가져오기</button>
+      <button id='exportPreset' class='bg-gray-700 px-3 py-0.5 rounded hover:bg-gray-600'>내보내기</button>
+      <button id='deletePreset' class='bg-black hover:bg-gray-900 px-3 py-0.5 rounded text-white'>전체 삭제</button>
     </div>
 
     <div class='flex gap-2 mb-4'>
       <input id='cmdInput' type='text' placeholder='Command'
-            class='flex-1 bg-gray-700 border border-gray-600 rounded px-3 py-2'>
-      <button id='addCmd' class='bg-blue-600 hover:bg-blue-500 px-4 py-2 rounded'>추가</button>
+            class='flex-1 bg-gray-700 border border-gray-600 rounded px-3 py-0.5'>
+      <button id='addCmd' class='bg-blue-600 hover:bg-blue-500 px-4 py-0.5 rounded'>추가</button>
     </div>
 
     <div id='groupsContainer' class='flex flex-col gap-6'></div>
@@ -233,7 +232,7 @@ function renderGroups(){
     cmds.forEach((cmd, index) => {
       const tag = document.createElement("div");
       tag.className =
-        "inline-flex items-center bg-gray-600 text-white px-3 py-1 rounded-full gap-2 cursor-pointer";
+        "inline-flex items-center bg-gray-600 text-white px-2 py-0.5 rounded-full gap-1 cursor-pointer text-sm";
 
       const textSpan = document.createElement("span");
       textSpan.textContent = cmd;
@@ -301,19 +300,19 @@ function updateConnectionUI(connected){
 
   if(connected){
     c.disabled = true;
-    c.className = "bg-green-600 hover:bg-green-500 px-4 py-2 rounded cursor-default";
+    c.className = "bg-green-600 hover:bg-green-500 px-4 py-0.5 rounded cursor-default";
     c.textContent = "연결됨";
 
     d.disabled = false;
-    d.className = "bg-red-600 hover:bg-red-500 px-4 py-2 rounded";
+    d.className = "bg-red-600 hover:bg-red-500 px-4 py-0.5 rounded";
     d.textContent = "해제";
   } else {
     c.disabled = false;
-    c.className = "bg-blue-600 hover:bg-blue-500 px-4 py-2 rounded";
+    c.className = "bg-blue-600 hover:bg-blue-500 px-4 py-0.5 rounded";
     c.textContent = "포트 연결";
 
     d.disabled = true;
-    d.className = "bg-gray-600 px-4 py-2 rounded cursor-default";
+    d.className = "bg-gray-600 px-4 py-0.5 rounded cursor-default";
     d.textContent = "해제됨";
   }
 }
