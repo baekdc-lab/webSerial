@@ -8,11 +8,9 @@
 </head>
 
 <body class='bg-gray-900 text-gray-100 p-5'>
-
-<!-- MAIN LAYOUT : 3 Columns (Console / Preset / Help) -->
 <div id='mainLayout' class='flex flex-row gap-6 w-full'>
 
-  <!-- LEFT PANEL (60%) : Console -->
+  <!-- LEFT PANEL (60%) -->
   <div class='w-[60%] bg-gray-800 p-5 rounded-xl shadow-lg border border-gray-700'>
     <h2 class='text-3xl font-bold mb-4'>WebSerial Console</h2>
 
@@ -43,8 +41,9 @@
     </div>
 
     <div id='serialOutput'
-         class="bg-[#0D0D0D] p-3 rounded-lg h-[36rem] overflow-y-auto whitespace-pre-wrap mb-4 
-                font-[FiraCode] font-thin text-white text-[15px]"></div>
+     class="bg-[#0D0D0D] p-3 rounded-lg h-[36rem] overflow-y-auto whitespace-pre-wrap mb-4 
+            font-[FiraCode] font-thin text-white text-[15px]">
+</div>
 
     <div class='flex gap-3 mb-3'>
       <input id='msgInput' type='text' placeholder='메시지 입력...'
@@ -60,8 +59,8 @@
     </div>
   </div>
 
-  <!-- CENTER PANEL (32%) : Preset -->
-  <div class='w-[32%] bg-gray-800 p-5 rounded-xl shadow-lg border border-gray-700 text-sm'>
+  <!-- RIGHT PANEL (40%) -->
+  <div class='w-[40%] bg-gray-800 p-5 rounded-xl shadow-lg border border-gray-700 text-sm'>
     <h2 class='text-xl font-bold mb-4'>프리셋</h2>
 
     <div class='flex gap-2 mb-4'>
@@ -79,38 +78,7 @@
     <div id='groupsContainer' class='flex flex-col gap-6'></div>
   </div>
 
-  <!-- RIGHT PANEL (8%) : HELP -->
-  <div class='w-[8%] bg-gray-800 p-4 rounded-xl shadow-lg border border-gray-700 text-xs leading-[1.3] overflow-y-auto'>
-
-    <h3 class='font-bold text-blue-300 mb-3 text-sm'>HELP</h3>
-
-    <p class='text-gray-300 mb-2 font-semibold'>JSON 형식</p>
-<pre class="whitespace-pre-wrap bg-[#111] p-2 rounded text-gray-200 text-[10px]">
-[
-  "[GROUP] Master보드 cmd",
-  "AT+RST=M,1",
-  "AT+VER=M,1",
-
-  "[GROUP] Slave보드 cmd",
-  "AT$ID",
-  "AT+VER=S,1"
-]
-</pre>
-
-    <p class='text-gray-300 mt-4 mb-2 font-semibold'>TXT 형식</p>
-<pre class="whitespace-pre-wrap bg-[#111] p-2 rounded text-gray-200 text-[10px]">
-[GROUP] Master보드 cmd
-AT+RST=M,1
-AT+VER=M,1
-
-[GROUP] Slave보드 cmd
-AT$ID
-AT+VER=S,1
-</pre>
-
-  </div>
-
-</div> <!-- END MAIN LAYOUT -->
+</div>
 
 <script>
 let port, reader, writer;
@@ -162,7 +130,7 @@ document.getElementById("importPreset").onclick = () => {
         return;
       }
 
-      /* 2) JSON 객체 */
+      /* 2) JSON 객체 → 그대로 사용 */
       if (json && typeof json === "object") {
         presetData = json;
         savePresets();
@@ -170,7 +138,7 @@ document.getElementById("importPreset").onclick = () => {
         return;
       }
 
-      /* 3) TXT 파일 → [GROUP] 자동 분리 */
+      /* 3) TXT → [GROUP] 자동 분리 */
       const lines = text
         .split(/\r?\n/)
         .map(v => v.trim())
@@ -242,7 +210,7 @@ function renderGroups(){
       list.appendChild(tag);
     });
 
-    box.appendappend(list);
+    box.appendChild(list);
     container.appendChild(box);
   });
 }
@@ -255,10 +223,13 @@ loadPresets();
 document.getElementById("addCmd").onclick = () => {
   const cmd = document.getElementById("cmdInput").value.trim();
   if(!cmd) return;
+
   if(!presetData["Default"]) presetData["Default"] = [];
   presetData["Default"].push(cmd);
+
   savePresets();
   renderGroups();
+
   document.getElementById("cmdInput").value = "";
 };
 
@@ -345,7 +316,6 @@ function updateConnectionUI(connected){
     d.disabled = false;
     d.className = "bg-red-600 hover:bg-red-500 px-4 py-0.5 rounded";
     d.textContent = "해제";
-
   } else {
     c.disabled = false;
     c.className = "bg-blue-600 hover:bg-blue-500 px-4 py-0.5 rounded";
