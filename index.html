@@ -11,14 +11,22 @@
 <div id='mainLayout' class='flex flex-row gap-6 w-full'>
 
   <!-- LEFT PANEL (60%) -->
-  <div class='w-[60%] bg-gray-800 p-5 rounded-xl shadow-lg border border-gray-700'>
-    <h2 class='text-3xl font-bold mb-4'>WebSerial Console</h2>
+  <div id="consolePanel" class='w-[60%] bg-gray-800 p-5 rounded-xl shadow-lg border border-gray-700'>
+    <!-- 타이틀 + 프리셋 버튼 같은 줄 -->
+    <div class="flex justify-between items-center mb-4">
+      <h2 class='text-3xl font-bold'>WebSerial Console</h2>
+      <button id='togglePresetBtn'
+              class='bg-gray-700 hover:bg-gray-600 px-4 py-0.5 rounded border border-gray-600'>
+        프리셋
+      </button>
+    </div>
 
     <div class='flex justify-between mb-4 items-end'>
       <div class='flex gap-4 items-end'>
         <div>
           <label class='text-sm'>Baud</label>
           <select id='baud' class='bg-gray-700 border border-gray-600 rounded px-2 py-0.5 w-24'>
+            <option>4800</option>
             <option>9600</option>
             <option selected>115200</option>
           </select>
@@ -35,24 +43,41 @@
       </div>
 
       <div class='flex gap-2'>
-        <button id='connectBtn' class='bg-blue-600 hover:bg-blue-500 px-4 py-0.5 rounded'>포트 연결</button>
-        <button id='disconnectBtn' class='bg-gray-600 px-4 py-0.5 rounded cursor-default' disabled>해제됨</button>
+        <!-- 후보2: 포트 연결(기본) -->
+        <button id='connectBtn'
+                class='bg-gray-700 hover:bg-gray-600 px-4 py-0.5 rounded border border-emerald-500 text-emerald-200'>
+          포트 연결
+        </button>
+        <!-- 후보2: 해제됨(비활성) -->
+        <button id='disconnectBtn'
+                class='bg-gray-600 px-4 py-0.5 rounded border border-gray-500 text-gray-400 cursor-default'
+                disabled>
+          해제됨
+        </button>
       </div>
     </div>
 
     <div id='serialOutput'
      class="bg-[#0D0D0D] p-3 rounded-lg h-[36rem] overflow-y-auto whitespace-pre-wrap mb-4 
             font-[FiraCode] font-thin text-white text-[15px]">
-</div>
+    </div>
 
     <div class='flex gap-3 mb-3'>
       <input id='msgInput' type='text' placeholder='메시지 입력...'
             class='flex-1 bg-gray-700 border border-gray-600 rounded px-3 py-0.5'>
-      <button id='sendBtn' class='bg-green-600 hover:bg-green-500 px-4 py-0.5 rounded'>전송</button>
+      <!-- 후보2: 전송 = 초록 포인트 -->
+      <button id='sendBtn'
+              class='bg-gray-700 hover:bg-gray-600 px-4 py-0.5 rounded border border-emerald-500 text-emerald-200'>
+        전송
+      </button>
     </div>
 
     <div class='flex items-center gap-4'>
-      <button id='clearBtn' class='bg-gray-700 px-3 py-0.5 rounded hover:bg-gray-600'>지우기</button>
+      <!-- 후보2: 중립 회색 -->
+      <button id='clearBtn'
+              class='bg-gray-700 px-3 py-0.5 rounded border border-gray-600 hover:bg-gray-600'>
+        지우기
+      </button>
       <label class='flex items-center gap-2'>
         <input type='checkbox' id='autoScroll' checked> 자동 스크롤
       </label>
@@ -60,19 +85,42 @@
   </div>
 
   <!-- RIGHT PANEL (40%) -->
-  <div class='w-[40%] bg-gray-800 p-5 rounded-xl shadow-lg border border-gray-700 text-sm'>
-    <h2 class='text-xl font-bold mb-4'>프리셋</h2>
+  <div id="presetPanel" class='w-[40%] bg-gray-800 p-5 rounded-xl shadow-lg border border-gray-700 text-sm'>
+    <!-- 프리셋 제목 + 닫기 버튼 -->
+    <div class='flex justify-between items-center mb-4'>
+      <h2 class='text-xl font-bold'>프리셋</h2>
+      <!-- 후보2: 중립 회색 -->
+      <button id="closePresetBtn"
+              class="text-xs bg-gray-700 hover:bg-gray-600 px-2 py-0.5 rounded border border-gray-600">
+        닫기
+      </button>
+    </div>
 
     <div class='flex gap-2 mb-4'>
-      <button id='importPreset' class='bg-gray-700 px-3 py-0.5 rounded hover:bg-gray-600'>가져오기</button>
-      <button id='exportPreset' class='bg-gray-700 px-3 py-0.5 rounded hover:bg-gray-600'>내보내기</button>
-      <button id='deletePreset' class='bg-black hover:bg-gray-900 px-3 py-0.5 rounded text-white'>전체 삭제</button>
+      <!-- 후보2: 중립 회색 -->
+      <button id='importPreset'
+              class='bg-gray-700 px-3 py-0.5 rounded border border-gray-600 hover:bg-gray-600'>
+        가져오기
+      </button>
+      <button id='exportPreset'
+              class='bg-gray-700 px-3 py-0.5 rounded border border-gray-600 hover:bg-gray-600'>
+        내보내기
+      </button>
+      <!-- 후보2: 삭제 = 빨간 포인트 -->
+      <button id='deletePreset'
+              class='bg-gray-700 hover:bg-gray-600 px-3 py-0.5 rounded border border-rose-500 text-rose-200'>
+        전체 삭제
+      </button>
     </div>
 
     <div class='flex gap-2 mb-4'>
       <input id='cmdInput' type='text' placeholder='Command'
             class='flex-1 bg-gray-700 border border-gray-600 rounded px-3 py-0.5'>
-      <button id='addCmd' class='bg-blue-600 hover:bg-blue-500 px-4 py-0.5 rounded'>추가</button>
+      <!-- 후보2: 추가 = 초록 포인트 -->
+      <button id='addCmd'
+              class='bg-gray-700 hover:bg-gray-600 px-4 py-0.5 rounded border border-emerald-500 text-emerald-200'>
+        추가
+      </button>
     </div>
 
     <div id='groupsContainer' class='flex flex-col gap-6'></div>
@@ -169,7 +217,7 @@ document.getElementById("importPreset").onclick = () => {
 };
 
 /* ============================================================
-   RENDER PRESETS (no delete button)
+   RENDER PRESETS (no delete per item)
 ============================================================ */
 function renderGroups(){
   const container = document.getElementById("groupsContainer");
@@ -310,21 +358,61 @@ function updateConnectionUI(connected){
 
   if(connected){
     c.disabled = true;
-    c.className = "bg-green-600 hover:bg-green-500 px-4 py-0.5 rounded cursor-default";
+    c.className =
+      "bg-gray-700 px-4 py-0.5 rounded border border-emerald-500 text-emerald-200 cursor-default";
     c.textContent = "연결됨";
 
     d.disabled = false;
-    d.className = "bg-red-600 hover:bg-red-500 px-4 py-0.5 rounded";
+    d.className =
+      "bg-gray-700 hover:bg-gray-600 px-4 py-0.5 rounded border border-rose-500 text-rose-200";
     d.textContent = "해제";
   } else {
     c.disabled = false;
-    c.className = "bg-blue-600 hover:bg-blue-500 px-4 py-0.5 rounded";
+    c.className =
+      "bg-gray-700 hover:bg-gray-600 px-4 py-0.5 rounded border border-emerald-500 text-emerald-200";
     c.textContent = "포트 연결";
 
     d.disabled = true;
-    d.className = "bg-gray-600 px-4 py-0.5 rounded cursor-default";
+    d.className =
+      "bg-gray-600 px-4 py-0.5 rounded border border-gray-500 text-gray-400 cursor-default";
     d.textContent = "해제됨";
   }
+}
+
+/* ============================================================
+   프리셋 패널 열기/닫기
+============================================================ */
+const consolePanelEl   = document.getElementById("consolePanel");
+const presetPanelEl    = document.getElementById("presetPanel");
+const togglePresetBtn  = document.getElementById("togglePresetBtn");
+const closePresetBtn   = document.getElementById("closePresetBtn");
+
+function openPresetPanel(){
+  if (!presetPanelEl || !consolePanelEl) return;
+  presetPanelEl.classList.remove("hidden");   // 패널 표시
+  consolePanelEl.classList.remove("w-full");  // 풀폭 해제
+  if (!consolePanelEl.classList.contains("w-[60%]")) {
+    consolePanelEl.classList.add("w-[60%]");  // 60% 폭으로 복귀
+  }
+}
+
+function closePresetPanel(){
+  if (!presetPanelEl || !consolePanelEl) return;
+  presetPanelEl.classList.add("hidden");      // 패널 숨김
+  consolePanelEl.classList.remove("w-[60%]");
+  if (!consolePanelEl.classList.contains("w-full")) {
+    consolePanelEl.classList.add("w-full");   // 콘솔을 100% 폭으로
+  }
+}
+
+// 상단 "프리셋" 버튼: 항상 "열기" 역할
+if (togglePresetBtn) {
+  togglePresetBtn.addEventListener("click", openPresetPanel);
+}
+
+// 프리셋 내부 "닫기" 버튼
+if (closePresetBtn) {
+  closePresetBtn.addEventListener("click", closePresetPanel);
 }
 </script>
 
